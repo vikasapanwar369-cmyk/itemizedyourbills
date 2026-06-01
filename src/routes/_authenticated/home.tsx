@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Camera, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { CountUp } from "@/components/CountUp";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
 
