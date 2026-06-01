@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bills: {
+        Row: {
+          bill_date: string
+          category: string
+          created_at: string
+          id: string
+          image_url: string | null
+          store: string
+          total: number
+          user_id: string
+        }
+        Insert: {
+          bill_date?: string
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          store?: string
+          total?: number
+          user_id: string
+        }
+        Update: {
+          bill_date?: string
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          store?: string
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      items: {
+        Row: {
+          bill_date: string
+          bill_id: string
+          brand: string
+          category: string
+          created_at: string
+          id: string
+          name: string
+          price: number
+          qty: number
+          sub: string
+          unit: string
+          unit_price: number
+          user_id: string
+        }
+        Insert: {
+          bill_date?: string
+          bill_id: string
+          brand?: string
+          category?: string
+          created_at?: string
+          id?: string
+          name: string
+          price?: number
+          qty?: number
+          sub?: string
+          unit?: string
+          unit_price?: number
+          user_id: string
+        }
+        Update: {
+          bill_date?: string
+          bill_id?: string
+          brand?: string
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          qty?: number
+          sub?: string
+          unit?: string
+          unit_price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
