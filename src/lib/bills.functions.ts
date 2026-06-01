@@ -21,6 +21,7 @@ const ItemSchema = z.object({
   unitPrice: z.coerce.number().default(0),
   price: z.coerce.number().default(0),
   sub: z.string().default("Other"),
+  category: z.enum(CATEGORIES).default("other"),
 });
 
 const BillSchema = z.object({
@@ -39,7 +40,7 @@ Return ONLY a valid JSON object with this exact structure:
 {
   "store": "exact store name from bill",
   "date": "ISO 8601 date if visible, else today",
-  "category": "grocery|vegetable|dairy|hygiene|household|medicine|petrol|clothes|electric|restaurant|school|utility|other",
+  "category": "DOMINANT category for the whole bill: grocery|vegetable|dairy|hygiene|household|medicine|petrol|clothes|electric|restaurant|school|utility|other",
   "total": <number>,
   "items": [
     {
@@ -49,7 +50,8 @@ Return ONLY a valid JSON object with this exact structure:
       "unit": "kg|g|L|ml|pcs|bars|strips|bottles|pack|plate",
       "unitPrice": <number>,
       "price": <line total>,
-      "sub": "Daal|Cooking Oil|Bathing Soap|Shampoo|Petrol|Vitamin|Fever & Pain|Rice & Wheat|Spices|Daily Vegetables|Leafy Greens|Seasonal Fruits|Meal|Starter|Shirt|Trouser|Innerwear|etc"
+      "sub": "Daal|Cooking Oil|Bathing Soap|Shampoo|Petrol|Vitamin|Fever & Pain|Rice & Wheat|Spices|Daily Vegetables|Leafy Greens|Seasonal Fruits|Meal|Starter|Shirt|Trouser|Innerwear|Milk|Paneer|Curd|Butter|Ghee|Atta|Sugar|Salt|etc",
+      "category": "PER-ITEM category from the same list above. Classify EACH item individually like Amazon/Flipkart taxonomy. Examples: milk/paneer/curd/butter/ghee/cheese -> dairy; fresh vegetables/fruits -> vegetable; soap/shampoo/toothpaste/sanitary -> hygiene; broom/detergent/cleaner/utensils -> household; tablets/medicines/syrup -> medicine; atta/rice/daal/sugar/salt/spices/oil/snacks -> grocery."
     }
   ]
 }
@@ -57,6 +59,7 @@ Rules:
 - Extract every visible item.
 - Use actual brand names (Amul, Tata, Dettol, Surf Excel, Parachute, MDH, Fortune, Colgate etc).
 - qty is always a number, unit is the string.
+- ALWAYS set a precise per-item "category" — do NOT just copy the bill category. A grocery-store bill can contain dairy, hygiene, household and grocery items; categorise each line correctly.
 - If unclear, make your best estimate. Never return an empty items array.
 - Output ONLY the JSON object, no prose, no markdown fences.`;
 
