@@ -186,6 +186,18 @@ function ScanPage() {
                   <input className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1" placeholder="Sub"
                     value={it.sub} onChange={(e) => updateItem(setBill, bill, i, { sub: e.target.value })} />
                 </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Category</span>
+                  <select
+                    value={it.category || bill.category}
+                    onChange={(e) => updateItem(setBill, bill, i, { category: e.target.value as ScannedBill["category"] })}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1"
+                  >
+                    {CATEGORY_KEYS.map((c) => (
+                      <option key={c} value={c}>{getCategory(c).emoji} {getCategory(c).label}</option>
+                    ))}
+                  </select>
+                </div>
               </motion.div>
             ))}
           </div>
