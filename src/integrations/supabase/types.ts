@@ -18,32 +18,77 @@ export type Database = {
         Row: {
           bill_date: string
           category: string
+          country: string
           created_at: string
+          currency: string
+          discount: number
           id: string
           image_url: string | null
+          locale: string
           store: string
+          subtotal: number
+          tax: number
           total: number
           user_id: string
         }
         Insert: {
           bill_date?: string
           category?: string
+          country?: string
           created_at?: string
+          currency?: string
+          discount?: number
           id?: string
           image_url?: string | null
+          locale?: string
           store?: string
+          subtotal?: number
+          tax?: number
           total?: number
           user_id: string
         }
         Update: {
           bill_date?: string
           category?: string
+          country?: string
           created_at?: string
+          currency?: string
+          discount?: number
           id?: string
           image_url?: string | null
+          locale?: string
           store?: string
+          subtotal?: number
+          tax?: number
           total?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number
         }
         Relationships: []
       }
@@ -52,13 +97,18 @@ export type Database = {
           bill_date: string
           bill_id: string
           brand: string
+          categorized_at: string
+          categorized_by: string
           category: string
+          category_confidence: number
+          category_id: string | null
           created_at: string
           id: string
           name: string
           price: number
           qty: number
           sub: string
+          subcategory_id: string | null
           unit: string
           unit_price: number
           user_id: string
@@ -67,13 +117,18 @@ export type Database = {
           bill_date?: string
           bill_id: string
           brand?: string
+          categorized_at?: string
+          categorized_by?: string
           category?: string
+          category_confidence?: number
+          category_id?: string | null
           created_at?: string
           id?: string
           name: string
           price?: number
           qty?: number
           sub?: string
+          subcategory_id?: string | null
           unit?: string
           unit_price?: number
           user_id: string
@@ -82,13 +137,18 @@ export type Database = {
           bill_date?: string
           bill_id?: string
           brand?: string
+          categorized_at?: string
+          categorized_by?: string
           category?: string
+          category_confidence?: number
+          category_id?: string | null
           created_at?: string
           id?: string
           name?: string
           price?: number
           qty?: number
           sub?: string
+          subcategory_id?: string | null
           unit?: string
           unit_price?: number
           user_id?: string
@@ -99,6 +159,58 @@ export type Database = {
             columns: ["bill_id"]
             isOneToOne: false
             referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subcategories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          key: string
+          keywords: string[]
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          key: string
+          keywords?: string[]
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          keywords?: string[]
+          label?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
