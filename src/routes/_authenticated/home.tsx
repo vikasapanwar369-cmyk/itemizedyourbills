@@ -3,9 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Camera, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { CountUp } from "@/components/CountUp";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { inr, shortDate } from "@/lib/format";
+import { money, shortDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "BillSnap" }] }),
@@ -20,18 +19,22 @@ function HomePage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
       const [{ data: thisMonth }, { data: lastMonth }, { data: recent }] = await Promise.all([
-        supabase.from("bills").select("total, bill_date").gte("bill_date", monthStart),
-        supabase.from("bills").select("total").gte("bill_date", lastMonthStart).lt("bill_date", monthStart),
-        supabase.from("bills").select("id, store, bill_date, category, total").order("bill_date", { ascending: false }).limit(3),
+        supabase.from("bills").select("total, bill_date, currency").gte("bill_date", monthStart),
+        supabase.from("bills").select("total, currency").gte("bill_date", lastMonthStart).lt("bill_date", monthStart),
+        supabase.from("bills").select("id, store, bill_date, category, total, currency").order("bill_date", { ascending: false }).limit(5),
       ]);
       const thisTotal = (thisMonth ?? []).reduce((s, b) => s + Number(b.total), 0);
       const lastTotal = (lastMonth ?? []).reduce((s, b) => s + Number(b.total), 0);
-      return { thisTotal, lastTotal, thisMonth: thisMonth ?? [], recent: recent ?? [] };
+      const cc = new Map<string, number>();
+      for (const b of [...(thisMonth ?? []), ...(recent ?? [])]) cc.set(b.currency ?? "INR", (cc.get(b.currency ?? "INR") ?? 0) + 1);
+      const currency = [...cc.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
+      return { thisTotal, lastTotal, thisMonth: thisMonth ?? [], recent: recent ?? [], currency };
     },
   });
 
   const thisTotal = data?.thisTotal ?? 0;
   const lastTotal = data?.lastTotal ?? 0;
+  const currency = data?.currency ?? "INR";
   const delta = lastTotal > 0 ? ((thisTotal - lastTotal) / lastTotal) * 100 : 0;
   const up = delta > 0;
 
@@ -56,7 +59,7 @@ function HomePage() {
         <div className="absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-emerald-500/20 blur-3xl" />
         <p className="text-xs uppercase tracking-wider text-muted-foreground">This month</p>
         <div className="mt-2 flex items-end gap-3">
-          <CountUp to={thisTotal} prefix="₹" className="text-5xl font-bold" />
+          <p className="text-5xl font-bold tabular">{money(thisTotal, currency)}</p>
         </div>
         {lastTotal > 0 && (
           <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${up ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}`}>
@@ -100,7 +103,7 @@ function HomePage() {
                   <p className="truncate font-medium">{b.store}</p>
                   <p className="text-xs text-muted-foreground">{shortDate(b.bill_date)}</p>
                 </div>
-                <p className="tabular font-semibold">{inr(b.total)}</p>
+                <p className="tabular font-semibold">{money(b.total, b.currency ?? "INR")}</p>
               </motion.div>
             ))}
           </div>

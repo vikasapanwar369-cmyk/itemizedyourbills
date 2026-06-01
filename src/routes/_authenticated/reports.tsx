@@ -1,13 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES, getCategory } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { CountUp } from "@/components/CountUp";
-import { inr } from "@/lib/format";
+import { money } from "@/lib/format";
+import { recategorizeMyItems } from "@/lib/bills.functions";
 
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({ meta: [{ title: "Reports — BillSnap" }] }),
@@ -25,15 +29,18 @@ function rangeStart(r: Range): Date {
 }
 
 function ReportsPage() {
+  const qc = useQueryClient();
   const [range, setRange] = useState<Range>("month");
   const [open, setOpen] = useState<string | null>(null);
+  const [reclassifying, setReclassifying] = useState(false);
+  const reclassify = useServerFn(recategorizeMyItems);
 
   const { data } = useQuery({
     queryKey: ["reports", range],
     queryFn: async () => {
       const from = rangeStart(range).toISOString();
       const [{ data: bills }, { data: items }] = await Promise.all([
-        supabase.from("bills").select("id, category, total, bill_date").gte("bill_date", from),
+        supabase.from("bills").select("id, category, total, bill_date, currency").gte("bill_date", from),
         supabase.from("items").select("category, sub, price, bill_date").gte("bill_date", from),
       ]);
       return { bills: bills ?? [], items: items ?? [] };
@@ -42,6 +49,13 @@ function ReportsPage() {
 
   const bills = data?.bills ?? [];
   const items = data?.items ?? [];
+
+  // Pick primary currency = the one used in the most bills in range.
+  const currencyCounts = new Map<string, number>();
+  for (const b of bills) currencyCounts.set(b.currency ?? "INR", (currencyCounts.get(b.currency ?? "INR") ?? 0) + 1);
+  const currency = [...currencyCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
+  const fmt = (v: number) => money(v, currency);
+
   const total = bills.reduce((s, b) => s + Number(b.total), 0);
   const biggest = bills.reduce((m, b) => Math.max(m, Number(b.total)), 0);
 
@@ -71,9 +85,32 @@ function ReportsPage() {
     m.set(it.sub, (m.get(it.sub) ?? 0) + Number(it.price));
   }
 
+  async function handleReclassify() {
+    setReclassifying(true);
+    try {
+      const res = await reclassify({});
+      toast.success(res.updated ? `Re-classified ${res.updated} of ${res.total} items` : "Everything is already up-to-date");
+      qc.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Re-classify failed");
+    } finally {
+      setReclassifying(false);
+    }
+  }
+
   return (
     <div className="px-5 pt-8 space-y-5">
-      <h1 className="text-2xl font-bold">Reports</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <button
+          onClick={handleReclassify}
+          disabled={reclassifying}
+          className="glass px-3 py-2 text-xs font-medium flex items-center gap-1.5 disabled:opacity-60"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+          {reclassifying ? "Re-classifying…" : "Re-classify with AI"}
+        </button>
+      </div>
 
       <div className="flex gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
         {(["week", "month", "year"] as Range[]).map((r) => (
@@ -87,7 +124,7 @@ function ReportsPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="glass p-4">
           <p className="text-xs text-muted-foreground">Total spent</p>
-          <CountUp to={total} prefix="₹" className="text-2xl font-bold mt-1 block" />
+          <p className="text-2xl font-bold mt-1 tabular">{fmt(total)}</p>
         </div>
         <div className="glass p-4">
           <p className="text-xs text-muted-foreground">Bills</p>
@@ -99,7 +136,7 @@ function ReportsPage() {
         </div>
         <div className="glass p-4">
           <p className="text-xs text-muted-foreground">Biggest bill</p>
-          <CountUp to={biggest} prefix="₹" className="text-2xl font-bold mt-1 block" />
+          <p className="text-2xl font-bold mt-1 tabular">{fmt(biggest)}</p>
         </div>
       </div>
 
@@ -112,7 +149,7 @@ function ReportsPage() {
                 <Pie data={catData} dataKey="val" nameKey="cat" innerRadius={50} outerRadius={90} paddingAngle={2} animationDuration={900}>
                   {catData.map((d) => (<Cell key={d.cat} fill={d.meta.color} />))}
                 </Pie>
-                <Tooltip formatter={(v) => inr(Number(v))} contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
+                <Tooltip formatter={(v) => fmt(Number(v))} contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -121,7 +158,7 @@ function ReportsPage() {
               <div key={d.cat} className="flex items-center gap-2 text-xs">
                 <span className="h-3 w-3 rounded-full" style={{ background: d.meta.color }} />
                 <span className="truncate flex-1">{d.meta.label}</span>
-                <span className="tabular text-muted-foreground">{inr(d.val)}</span>
+                <span className="tabular text-muted-foreground">{fmt(d.val)}</span>
               </div>
             ))}
           </div>
@@ -135,7 +172,7 @@ function ReportsPage() {
             <ResponsiveContainer>
               <BarChart data={barData}>
                 <XAxis dataKey="name" stroke="oklch(0.7 0.03 260)" fontSize={11} />
-                <Tooltip formatter={(v) => inr(Number(v))} contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
+                <Tooltip formatter={(v) => fmt(Number(v))} contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12 }} />
                 <Bar dataKey="val" fill="oklch(0.62 0.25 295)" radius={[6, 6, 0, 0]} animationDuration={800} />
               </BarChart>
             </ResponsiveContainer>
@@ -156,7 +193,7 @@ function ReportsPage() {
                 <div className="flex-1 text-left">
                   <div className="flex justify-between">
                     <p className="font-medium">{d.meta.label}</p>
-                    <p className="tabular font-semibold">{inr(d.val)}</p>
+                    <p className="tabular font-semibold">{fmt(d.val)}</p>
                   </div>
                   <div className="h-1.5 mt-1.5 rounded-full bg-white/5 overflow-hidden">
                     <motion.div className="h-full rounded-full" style={{ background: d.meta.color }}
@@ -169,7 +206,7 @@ function ReportsPage() {
                   {Array.from(sub.entries()).sort((a, b) => b[1] - a[1]).map(([s, v]) => (
                     <div key={s} className="flex justify-between text-xs">
                       <span className="text-muted-foreground">{s}</span>
-                      <span className="tabular">{inr(v)}</span>
+                      <span className="tabular">{fmt(v)}</span>
                     </div>
                   ))}
                 </div>
