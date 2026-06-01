@@ -78,7 +78,7 @@ function ScanPage() {
         unit_price: Number(it.unitPrice) || 0,
         price: Number(it.price) || 0,
         sub: it.sub || "Other",
-        category: bill.category,
+        category: it.category || bill.category,
         bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
       }));
       const { error: itemsErr } = await supabase.from("items").insert(items);
