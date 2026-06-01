@@ -2,13 +2,14 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Home, BarChart3, Repeat, Receipt, Camera } from "lucide-react";
 
-const TABS = [
+type Tab = { to: string; label: string; icon: typeof Home; primary?: boolean };
+const TABS: Tab[] = [
   { to: "/home",        label: "Home",    icon: Home },
   { to: "/reports",     label: "Reports", icon: BarChart3 },
   { to: "/scan",        label: "Scan",    icon: Camera, primary: true },
   { to: "/consumption", label: "Usage",   icon: Repeat },
   { to: "/history",     label: "History", icon: Receipt },
-] as const;
+];
 
 export function BottomNav() {
   const location = useLocation();
@@ -33,12 +34,7 @@ export function BottomNav() {
           const active = location.pathname.startsWith(t.to);
           if (t.primary) {
             return (
-              <Link
-                key={t.to}
-                to={t.to}
-                className="-mt-7 flex flex-col items-center"
-                aria-label={t.label}
-              >
+              <Link key={t.to} to={t.to as "/scan"} className="-mt-7 flex flex-col items-center" aria-label={t.label}>
                 <div className="relative h-14 w-14 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-[0_10px_40px_oklch(0.62_0.25_295/0.6)]">
                   <span className="absolute inset-0 rounded-full animate-ping bg-violet-400/40" />
                   <Icon className="h-7 w-7 text-white relative" />
@@ -50,7 +46,7 @@ export function BottomNav() {
           return (
             <Link
               key={t.to}
-              to={t.to}
+              to={t.to as "/home"}
               className={`flex flex-1 flex-col items-center gap-1 py-2 transition ${
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
