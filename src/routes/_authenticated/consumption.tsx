@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, getCategory } from "@/lib/categories";
-import { inr, shortDate, daysBetween } from "@/lib/format";
+import { money, shortDate, daysBetween } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/consumption")({
   head: () => ({ meta: [{ title: "Consumption — BillSnap" }] }),
@@ -20,12 +20,23 @@ function ConsumptionPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("items")
-        .select("name, brand, qty, unit, price, sub, category, bill_date")
+        .select("name, brand, qty, unit, price, sub, category, bill_date, bill:bills(currency)")
         .order("bill_date", { ascending: false })
         .limit(1000);
-      return data ?? [];
+      return (data ?? []) as Array<{
+        name: string; brand: string; qty: number; unit: string; price: number;
+        sub: string; category: string; bill_date: string; bill?: { currency: string } | null;
+      }>;
     },
   });
+
+  // Primary currency = most common across loaded items.
+  const cc = new Map<string, number>();
+  for (const it of items) {
+    const c = it.bill?.currency ?? "INR";
+    cc.set(c, (cc.get(c) ?? 0) + 1);
+  }
+  const currency = [...cc.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
 
   const filtered = useMemo(
     () => (filter === "all" ? items : items.filter((it) => it.category === filter)),
@@ -87,7 +98,7 @@ function ConsumptionPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold tabular">{g.qty.toFixed(g.qty % 1 === 0 ? 0 : 2)}<span className="text-sm text-muted-foreground ml-1">{g.unit}</span></p>
-                      <p className="tabular text-sm text-emerald-300">{inr(g.spend)}</p>
+                      <p className="tabular text-sm text-emerald-300">{money(g.spend, currency)}</p>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">

@@ -6,7 +6,7 @@ import { Search, Download, Trash2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { inr, fullDate } from "@/lib/format";
+import { money, fullDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/history")({
   head: () => ({ meta: [{ title: "History — BillSnap" }] }),
@@ -21,7 +21,7 @@ function HistoryPage() {
   const { data: bills = [] } = useQuery({
     queryKey: ["history"],
     queryFn: async () => {
-      const { data } = await supabase.from("bills").select("id, store, bill_date, category, total").order("bill_date", { ascending: false });
+      const { data } = await supabase.from("bills").select("id, store, bill_date, category, total, currency").order("bill_date", { ascending: false });
       return data ?? [];
     },
   });
@@ -109,14 +109,14 @@ function HistoryPage() {
                     <p className="font-medium truncate">{b.store}</p>
                     <p className="text-xs text-muted-foreground">{fullDate(b.bill_date)} · {items.length} item{items.length === 1 ? "" : "s"}</p>
                   </div>
-                  <p className="tabular font-semibold">{inr(b.total)}</p>
+                  <p className="tabular font-semibold">{money(b.total, b.currency ?? "INR")}</p>
                 </button>
                 {isOpen && (
                   <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
                     {items.map((it, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span className="truncate pr-2">{it.name} <span className="text-muted-foreground text-xs">· {it.brand} · {it.qty}{it.unit}</span></span>
-                        <span className="tabular text-muted-foreground">{inr(it.price)}</span>
+                        <span className="tabular text-muted-foreground">{money(it.price, b.currency ?? "INR")}</span>
                       </div>
                     ))}
                     <button onClick={() => del(b.id)} className="mt-2 text-xs text-rose-300 flex items-center gap-1">
