@@ -10,6 +10,7 @@ const ScanInput = z.object({
 
 const ScannedItemSchema = z.object({
   name: z.string(),
+  canonical_name: z.string().default(""),
   brand: z.string().default("Local"),
   qty: z.coerce.number().default(1),
   unit: z.string().default("pcs"),
@@ -94,6 +95,7 @@ Read the image carefully and extract:
 - ISO 3166 country code (IN, US, GB, DE, …) and a reasonable BCP-47 locale (en-IN, en-US, de-DE, …).
 - subtotal, tax (GST/VAT/sales tax combined), discount, grand total.
 - EVERY line item with: name, brand (real brand if visible, else "Local"), qty (number), unit (kg/g/L/ml/pcs/pack/bottle/strip/bar/plate/serving), unit_price, line price, a precise per-item category_key and subcategory_key from the taxonomy below, and a confidence 0..1.
+- canonical_name for every line item: a short, lowercase, brand-agnostic identifier you would use to match the SAME product across receipts and stores. Examples: "dettol soap 125g", "amul milk 1l", "crocin 500", "iphone 15 case", "petrol", "lays classic 50g". Strip pack-of-N marketing; keep size when meaningful. NEVER blank.
 
 CATEGORY TAXONOMY (use these exact keys — do NOT invent new ones):
 {TAXONOMY}
@@ -132,6 +134,7 @@ const TOOL_SCHEMA = {
             additionalProperties: false,
             properties: {
               name: { type: "string" },
+              canonical_name: { type: "string", description: "Short brand-agnostic key to match the same product across stores. Lowercase. Always provided." },
               brand: { type: "string" },
               qty: { type: "number" },
               unit: { type: "string" },
@@ -244,6 +247,7 @@ export const scanBill = createServerFn({ method: "POST" })
       const sk = it.subcategory_key && tax.subIdByKeyByCat.get(ck)?.has(it.subcategory_key) ? it.subcategory_key : "";
       return {
         name: it.name,
+        canonical_name: (it.canonical_name ?? "").toLowerCase().trim() || it.name.toLowerCase().trim(),
         brand: it.brand || "Local",
         qty: Number(it.qty ?? 1),
         unit: it.unit || "pcs",
