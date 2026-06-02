@@ -18,11 +18,13 @@ export type Database = {
         Row: {
           bill_date: string
           category: string
+          content_hash: string | null
           country: string
           created_at: string
           currency: string
           discount: number
           id: string
+          image_phash: string | null
           image_url: string | null
           locale: string
           store: string
@@ -34,11 +36,13 @@ export type Database = {
         Insert: {
           bill_date?: string
           category?: string
+          content_hash?: string | null
           country?: string
           created_at?: string
           currency?: string
           discount?: number
           id?: string
+          image_phash?: string | null
           image_url?: string | null
           locale?: string
           store?: string
@@ -50,11 +54,13 @@ export type Database = {
         Update: {
           bill_date?: string
           category?: string
+          content_hash?: string | null
           country?: string
           created_at?: string
           currency?: string
           discount?: number
           id?: string
+          image_phash?: string | null
           image_url?: string | null
           locale?: string
           store?: string
@@ -97,6 +103,7 @@ export type Database = {
           bill_date: string
           bill_id: string
           brand: string
+          canonical_name: string | null
           categorized_at: string
           categorized_by: string
           category: string
@@ -117,6 +124,7 @@ export type Database = {
           bill_date?: string
           bill_id: string
           brand?: string
+          canonical_name?: string | null
           categorized_at?: string
           categorized_by?: string
           category?: string
@@ -137,6 +145,7 @@ export type Database = {
           bill_date?: string
           bill_id?: string
           brand?: string
+          canonical_name?: string | null
           categorized_at?: string
           categorized_by?: string
           category?: string
