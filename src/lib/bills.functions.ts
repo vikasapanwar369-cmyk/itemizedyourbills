@@ -388,3 +388,33 @@ export const recategorizeMyItems = createServerFn({ method: "POST" })
 
     return { updated, total: queue.length };
   });
+
+/**
+ * Look up an existing bill that matches by image fingerprint OR content fingerprint.
+ * Returns the first match so the UI can warn the user before they double-save.
+ */
+export const checkDuplicateBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      imagePhash: z.string().optional(),
+      contentHash: z.string().optional(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
+    const hashes: string[] = [];
+    if (data.imagePhash) hashes.push(`image_phash.eq.${data.imagePhash}`);
+    if (data.contentHash) hashes.push(`content_hash.eq.${data.contentHash}`);
+    if (hashes.length === 0) return { found: null as null | { id: string; store: string; bill_date: string; total: number; currency: string } };
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("bills")
+      .select("id, store, bill_date, total, currency")
+      .eq("user_id", userId)
+      .or(hashes.join(","))
+      .order("bill_date", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    return { found: rows?.[0] ?? null };
+  });
