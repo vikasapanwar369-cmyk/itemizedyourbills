@@ -8,8 +8,7 @@ import { toast } from "sonner";
 import { scanBill, checkDuplicateBill, type ScannedBill } from "@/lib/bills.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { computeImagePhash, computeContentHash } from "@/lib/imageHash";
-import { shortDate } from "@/lib/format";
-import { money } from "@/lib/format";
+import { shortDate, money } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/scan")({
   head: () => ({ meta: [{ title: "Scan bill — BillSnap" }] }),
