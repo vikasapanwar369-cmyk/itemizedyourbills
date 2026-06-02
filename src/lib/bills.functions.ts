@@ -228,6 +228,7 @@ export const scanBill = createServerFn({ method: "POST" })
       total?: number;
       items?: Array<{
         name: string;
+        canonical_name?: string;
         brand?: string;
         qty?: number;
         unit?: string;
