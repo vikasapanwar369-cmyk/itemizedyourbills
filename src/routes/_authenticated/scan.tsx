@@ -1,19 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, Upload, CheckCircle2 } from "lucide-react";
+import { Camera, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { scanBill } from "@/lib/bills.functions";
+import { scanBill, checkDuplicateBill, type ScannedBill } from "@/lib/bills.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { computeImagePhash, computeContentHash } from "@/lib/imageHash";
+import { shortDate } from "@/lib/format";
+import { money } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/scan")({
   head: () => ({ meta: [{ title: "Scan bill — BillSnap" }] }),
   component: ScanPage,
 });
 
-type Phase = "idle" | "reading" | "saving" | "done";
+type Phase = "idle" | "reading" | "saving" | "dup" | "done";
+type DupBill = { id: string; store: string; bill_date: string; total: number; currency: string };
 
 function ScanPage() {
   const navigate = useNavigate();
@@ -23,17 +27,62 @@ function ScanPage() {
   const [progress, setProgress] = useState<string>("");
   const [preview, setPreview] = useState<string | null>(null);
   const runScan = useServerFn(scanBill);
+  const runDupCheck = useServerFn(checkDuplicateBill);
+
+  const [dup, setDup] = useState<DupBill | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingBill, setPendingBill] = useState<ScannedBill | null>(null);
+  const [pendingPhash, setPendingPhash] = useState<string>("");
 
   async function onFile(file: File) {
     setPreview(URL.createObjectURL(file));
     setPhase("reading");
-    setProgress("Reading bill with AI…");
+    setProgress("Checking against your past bills…");
     try {
+      const phash = await computeImagePhash(file);
+      if (phash) {
+        const pre = await runDupCheck({ data: { imagePhash: phash } });
+        if (pre.found) {
+          setDup(pre.found);
+          setPendingFile(file);
+          setPendingBill(null);
+          setPendingPhash(phash);
+          setPhase("dup");
+          return;
+        }
+      }
+
+      setProgress("Reading bill with AI…");
       const base64 = await fileToBase64(file);
       const bill = await runScan({ data: { imageBase64: base64, mimeType: file.type || "image/jpeg" } });
 
-      setPhase("saving");
-      setProgress("Saving to your account…");
+      const contentHash = await computeContentHash({
+        store: bill.store,
+        date: bill.date ?? new Date().toISOString(),
+        total: Number(bill.total) || bill.items.reduce((s, it) => s + Number(it.price || 0), 0),
+        items: bill.items.map((it) => it.name),
+      });
+      const post = await runDupCheck({ data: { imagePhash: phash, contentHash } });
+      if (post.found) {
+        setDup(post.found);
+        setPendingFile(file);
+        setPendingBill(bill);
+        setPendingPhash(phash);
+        setPhase("dup");
+        return;
+      }
+
+      await persistBill(file, bill, phash, contentHash);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+      setPhase("idle");
+      setPreview(null);
+    }
+  }
+
+  async function persistBill(file: File, bill: ScannedBill, imagePhash: string, contentHash: string) {
+    setPhase("saving");
+    setProgress("Saving to your account…");
 
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes.user?.id;
@@ -60,6 +109,8 @@ function ScanPage() {
         country: bill.country || "IN",
         locale: bill.locale || "en-IN",
         image_url: imageUrl,
+        image_phash: imagePhash || null,
+        content_hash: contentHash || null,
       }).select("id").single();
       if (error) throw error;
 
@@ -67,6 +118,7 @@ function ScanPage() {
         bill_id: inserted!.id,
         user_id: uid,
         name: it.name,
+        canonical_name: it.canonical_name || it.name.toLowerCase().trim(),
         brand: it.brand || "Local",
         qty: Number(it.qty) || 1,
         unit: it.unit || "pcs",
@@ -88,11 +140,49 @@ function ScanPage() {
       qc.invalidateQueries();
       toast.success(`Bill saved · ${bill.items.length} items categorized`);
       setTimeout(() => navigate({ to: "/home" }), 900);
+  }
+
+  async function onSaveAnyway() {
+    if (!pendingFile || !pendingPhash) return;
+    try {
+      let bill = pendingBill;
+      if (!bill) {
+        setPhase("reading");
+        setProgress("Reading bill with AI…");
+        const base64 = await fileToBase64(pendingFile);
+        bill = await runScan({ data: { imageBase64: base64, mimeType: pendingFile.type || "image/jpeg" } });
+      }
+      const contentHash = await computeContentHash({
+        store: bill.store,
+        date: bill.date ?? new Date().toISOString(),
+        total: Number(bill.total) || bill.items.reduce((s, it) => s + Number(it.price || 0), 0),
+        items: bill.items.map((it) => it.name),
+      });
+      await persistBill(pendingFile, bill, pendingPhash, contentHash);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
       setPhase("idle");
       setPreview(null);
+    } finally {
+      setDup(null);
+      setPendingFile(null);
+      setPendingBill(null);
+      setPendingPhash("");
     }
+  }
+
+  function onViewOriginal() {
+    qc.invalidateQueries();
+    navigate({ to: "/history" });
+  }
+
+  function onCancelDup() {
+    setDup(null);
+    setPendingFile(null);
+    setPendingBill(null);
+    setPendingPhash("");
+    setPreview(null);
+    setPhase("idle");
   }
 
   const busy = phase === "reading" || phase === "saving";
@@ -131,6 +221,26 @@ function ScanPage() {
             <p className="text-xs text-muted-foreground">Categorising every line item automatically</p>
           </div>
         </div>
+      )}
+
+      {phase === "dup" && dup && (
+        <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="glass-strong p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-amber-300 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Looks like a duplicate</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You already scanned a bill from <span className="text-foreground font-medium">{dup.store}</span> on {shortDate(dup.bill_date)} for {money(dup.total, dup.currency)}.
+              </p>
+            </div>
+          </div>
+          {preview && <img src={preview} alt="bill" className="w-full rounded-2xl border border-white/10 max-h-44 object-cover" />}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onViewOriginal} className="glass py-3 text-sm font-medium">View original</button>
+            <button onClick={onSaveAnyway} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">Save anyway</button>
+          </div>
+          <button onClick={onCancelDup} className="w-full text-xs text-muted-foreground">Cancel</button>
+        </motion.div>
       )}
 
       {phase === "done" && (
