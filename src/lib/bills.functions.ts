@@ -10,6 +10,7 @@ const ScanInput = z.object({
 
 const ScannedItemSchema = z.object({
   name: z.string(),
+  canonical_name: z.string().default(""),
   brand: z.string().default("Local"),
   qty: z.coerce.number().default(1),
   unit: z.string().default("pcs"),
@@ -94,6 +95,7 @@ Read the image carefully and extract:
 - ISO 3166 country code (IN, US, GB, DE, …) and a reasonable BCP-47 locale (en-IN, en-US, de-DE, …).
 - subtotal, tax (GST/VAT/sales tax combined), discount, grand total.
 - EVERY line item with: name, brand (real brand if visible, else "Local"), qty (number), unit (kg/g/L/ml/pcs/pack/bottle/strip/bar/plate/serving), unit_price, line price, a precise per-item category_key and subcategory_key from the taxonomy below, and a confidence 0..1.
+- canonical_name for every line item: a short, lowercase, brand-agnostic identifier you would use to match the SAME product across receipts and stores. Examples: "dettol soap 125g", "amul milk 1l", "crocin 500", "iphone 15 case", "petrol", "lays classic 50g". Strip pack-of-N marketing; keep size when meaningful. NEVER blank.
 
 CATEGORY TAXONOMY (use these exact keys — do NOT invent new ones):
 {TAXONOMY}
@@ -132,6 +134,7 @@ const TOOL_SCHEMA = {
             additionalProperties: false,
             properties: {
               name: { type: "string" },
+              canonical_name: { type: "string", description: "Short brand-agnostic key to match the same product across stores. Lowercase. Always provided." },
               brand: { type: "string" },
               qty: { type: "number" },
               unit: { type: "string" },
@@ -225,6 +228,7 @@ export const scanBill = createServerFn({ method: "POST" })
       total?: number;
       items?: Array<{
         name: string;
+        canonical_name?: string;
         brand?: string;
         qty?: number;
         unit?: string;
@@ -244,6 +248,7 @@ export const scanBill = createServerFn({ method: "POST" })
       const sk = it.subcategory_key && tax.subIdByKeyByCat.get(ck)?.has(it.subcategory_key) ? it.subcategory_key : "";
       return {
         name: it.name,
+        canonical_name: (it.canonical_name ?? "").toLowerCase().trim() || it.name.toLowerCase().trim(),
         brand: it.brand || "Local",
         qty: Number(it.qty ?? 1),
         unit: it.unit || "pcs",
@@ -382,4 +387,34 @@ export const recategorizeMyItems = createServerFn({ method: "POST" })
     }
 
     return { updated, total: queue.length };
+  });
+
+/**
+ * Look up an existing bill that matches by image fingerprint OR content fingerprint.
+ * Returns the first match so the UI can warn the user before they double-save.
+ */
+export const checkDuplicateBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      imagePhash: z.string().optional(),
+      contentHash: z.string().optional(),
+    }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
+    const hashes: string[] = [];
+    if (data.imagePhash) hashes.push(`image_phash.eq.${data.imagePhash}`);
+    if (data.contentHash) hashes.push(`content_hash.eq.${data.contentHash}`);
+    if (hashes.length === 0) return { found: null as null | { id: string; store: string; bill_date: string; total: number; currency: string } };
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("bills")
+      .select("id, store, bill_date, total, currency")
+      .eq("user_id", userId)
+      .or(hashes.join(","))
+      .order("bill_date", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    return { found: rows?.[0] ?? null };
   });

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
@@ -78,6 +78,19 @@ function HomePage() {
           <div className="flex-1">
             <p className="font-semibold">Scan a new bill</p>
             <p className="text-xs text-muted-foreground">AI extracts every item in seconds</p>
+          </div>
+        </div>
+      </Link>
+
+      {/* Insights CTA */}
+      <Link to={"/insights" as "/home"} className="block">
+        <div className="glass flex items-center gap-4 p-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-600 flex items-center justify-center">
+            <Repeat className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold">Smart insights</p>
+            <p className="text-xs text-muted-foreground">Repeat items, gap analysis, low-stock & price alerts</p>
           </div>
         </div>
       </Link>
