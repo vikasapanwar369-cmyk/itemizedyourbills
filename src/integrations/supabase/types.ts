@@ -27,6 +27,7 @@ export type Database = {
           image_phash: string | null
           image_url: string | null
           locale: string
+          payment_mode: string
           store: string
           subtotal: number
           tax: number
@@ -45,6 +46,7 @@ export type Database = {
           image_phash?: string | null
           image_url?: string | null
           locale?: string
+          payment_mode?: string
           store?: string
           subtotal?: number
           tax?: number
@@ -63,6 +65,7 @@ export type Database = {
           image_phash?: string | null
           image_url?: string | null
           locale?: string
+          payment_mode?: string
           store?: string
           subtotal?: number
           tax?: number
@@ -109,8 +112,11 @@ export type Database = {
           category: string
           category_confidence: number
           category_id: string | null
+          company: string | null
           created_at: string
+          gst_percent: number | null
           id: string
+          mrp: number | null
           name: string
           price: number
           qty: number
@@ -118,6 +124,7 @@ export type Database = {
           subcategory_id: string | null
           unit: string
           unit_price: number
+          unit_weight_or_volume: string | null
           user_id: string
         }
         Insert: {
@@ -130,8 +137,11 @@ export type Database = {
           category?: string
           category_confidence?: number
           category_id?: string | null
+          company?: string | null
           created_at?: string
+          gst_percent?: number | null
           id?: string
+          mrp?: number | null
           name: string
           price?: number
           qty?: number
@@ -139,6 +149,7 @@ export type Database = {
           subcategory_id?: string | null
           unit?: string
           unit_price?: number
+          unit_weight_or_volume?: string | null
           user_id: string
         }
         Update: {
@@ -151,8 +162,11 @@ export type Database = {
           category?: string
           category_confidence?: number
           category_id?: string | null
+          company?: string | null
           created_at?: string
+          gst_percent?: number | null
           id?: string
+          mrp?: number | null
           name?: string
           price?: number
           qty?: number
@@ -160,6 +174,7 @@ export type Database = {
           subcategory_id?: string | null
           unit?: string
           unit_price?: number
+          unit_weight_or_volume?: string | null
           user_id?: string
         }
         Relationships: [
