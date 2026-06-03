@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, Repeat, ShoppingCart, Store, TrendingDown, TrendingUp } from "lucide-react";
 import { getInsights } from "@/lib/insights.functions";
 import { money, shortDate } from "@/lib/format";
+import { ItemDetailSheet } from "@/components/ItemDetailSheet";
 
 export const Route = createFileRoute("/_authenticated/insights")({
   head: () => ({ meta: [{ title: "Insights — BillSnap" }] }),
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/_authenticated/insights")({
 
 function InsightsPage() {
   const fetchInsights = useServerFn(getInsights);
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["insights"],
     queryFn: () => fetchInsights(),
@@ -48,7 +51,7 @@ function InsightsPage() {
             <Section title="Running low" icon={<AlertTriangle className="h-4 w-4 text-amber-300" />} subtitle="Predicted to run out based on your buying pattern">
               <div className="space-y-2">
                 {data.lowStock.slice(0, 8).map((i) => (
-                  <motion.div key={i.key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="glass p-3 flex items-center gap-3">
+                  <motion.button type="button" onClick={() => setOpenKey(i.key)} key={i.key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="glass p-3 flex items-center gap-3 w-full text-left active:scale-[0.99] transition">
                     <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold ${
                       (i.daysUntilDue ?? 0) < 0 ? "bg-rose-500/20 text-rose-300" : "bg-amber-500/20 text-amber-300"
                     }`}>
@@ -62,7 +65,7 @@ function InsightsPage() {
                       </p>
                     </div>
                     <p className="text-[11px] text-muted-foreground tabular">{money(i.lastUnitPrice, i.currency)}</p>
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             </Section>
@@ -107,7 +110,7 @@ function InsightsPage() {
             <Section title="What repeats in your home" icon={<Repeat className="h-4 w-4 text-violet-300" />} subtitle={`${data.totalItemsTracked} items tracked across your bills`}>
               <div className="space-y-2">
                 {data.repeats.slice(0, 12).map((i) => (
-                  <div key={i.key} className="glass p-3">
+                  <button type="button" onClick={() => setOpenKey(i.key)} key={i.key} className="glass p-3 w-full text-left active:scale-[0.99] transition">
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{i.name}</p>
@@ -134,7 +137,7 @@ function InsightsPage() {
                         </Chip>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </Section>
@@ -145,7 +148,7 @@ function InsightsPage() {
             <Section title="Price changes" icon={<ArrowUpRight className="h-4 w-4 text-rose-300" />} subtitle="Items where unit price moved >15%">
               <div className="space-y-2">
                 {data.priceAlerts.slice(0, 8).map((i) => (
-                  <div key={i.key} className="glass p-3 flex items-center gap-3">
+                  <button type="button" onClick={() => setOpenKey(i.key)} key={i.key} className="glass p-3 flex items-center gap-3 w-full text-left active:scale-[0.99] transition">
                     {i.priceDeltaPct > 0 ? (
                       <ArrowUpRight className="h-4 w-4 text-rose-300 shrink-0" />
                     ) : (
@@ -160,7 +163,7 @@ function InsightsPage() {
                     <p className={`text-sm font-semibold tabular ${i.priceDeltaPct > 0 ? "text-rose-300" : "text-emerald-300"}`}>
                       {i.priceDeltaPct > 0 ? "+" : ""}{i.priceDeltaPct.toFixed(0)}%
                     </p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </Section>
@@ -175,7 +178,7 @@ function InsightsPage() {
                   const priciest = i.stores[i.stores.length - 1];
                   const save = priciest.avgUnitPrice - cheapest.avgUnitPrice;
                   return (
-                    <div key={i.key} className="glass p-3">
+                    <button type="button" onClick={() => setOpenKey(i.key)} key={i.key} className="glass p-3 w-full text-left active:scale-[0.99] transition">
                       <p className="text-sm font-medium truncate">{i.name}</p>
                       <div className="mt-1 flex items-center justify-between text-[11px]">
                         <span className="text-emerald-300">{cheapest.store} · {money(cheapest.avgUnitPrice, cheapest.currency, undefined, { precise: true })}</span>
@@ -185,7 +188,7 @@ function InsightsPage() {
                       <p className="mt-1 text-[10px] text-muted-foreground">
                         Save {money(save, cheapest.currency, undefined, { precise: true })} per {i.unit}
                       </p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -206,6 +209,8 @@ function InsightsPage() {
           </Link>
         </>
       )}
+
+      <ItemDetailSheet itemKey={openKey} onClose={() => setOpenKey(null)} />
     </div>
   );
 }

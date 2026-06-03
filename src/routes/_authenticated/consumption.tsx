@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, getCategory } from "@/lib/categories";
-import { money, shortDate, daysBetween } from "@/lib/format";
+import { money, daysBetween } from "@/lib/format";
+import { ItemDetailSheet } from "@/components/ItemDetailSheet";
 
 export const Route = createFileRoute("/_authenticated/consumption")({
   head: () => ({ meta: [{ title: "Consumption — BillSnap" }] }),
@@ -13,18 +14,18 @@ export const Route = createFileRoute("/_authenticated/consumption")({
 
 function ConsumptionPage() {
   const [filter, setFilter] = useState<string>("all");
-  const [open, setOpen] = useState<string | null>(null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
   const { data: items = [] } = useQuery({
     queryKey: ["consumption"],
     queryFn: async () => {
       const { data } = await supabase
         .from("items")
-        .select("name, brand, qty, unit, price, sub, category, bill_date, bill:bills(currency)")
+        .select("name, canonical_name, brand, qty, unit, price, sub, category, bill_date, bill:bills(currency)")
         .order("bill_date", { ascending: false })
         .limit(1000);
       return (data ?? []) as Array<{
-        name: string; brand: string; qty: number; unit: string; price: number;
+        name: string; canonical_name: string | null; brand: string; qty: number; unit: string; price: number;
         sub: string; category: string; bill_date: string; bill?: { currency: string } | null;
       }>;
     },
@@ -45,10 +46,12 @@ function ConsumptionPage() {
 
   // group by name+brand
   const groups = useMemo(() => {
-    const map = new Map<string, { name: string; brand: string; sub: string; unit: string; category: string; qty: number; spend: number; count: number; dates: string[] }>();
+    const norm = (s: string) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const map = new Map<string, { key: string; name: string; brand: string; sub: string; unit: string; category: string; qty: number; spend: number; count: number; dates: string[] }>();
     for (const it of filtered) {
-      const key = `${it.name.toLowerCase()}|${(it.brand || "").toLowerCase()}`;
-      const g = map.get(key) ?? { name: it.name, brand: it.brand, sub: it.sub, unit: it.unit, category: it.category, qty: 0, spend: 0, count: 0, dates: [] };
+      const canon = it.canonical_name && it.canonical_name.trim() ? norm(it.canonical_name) : "";
+      const key = canon || `${norm(it.name)}|${norm(it.brand)}`;
+      const g = map.get(key) ?? { key, name: it.name, brand: it.brand, sub: it.sub, unit: it.unit, category: it.category, qty: 0, spend: 0, count: 0, dates: [] };
       g.qty += Number(it.qty);
       g.spend += Number(it.price);
       g.count += 1;
@@ -78,8 +81,6 @@ function ConsumptionPage() {
       ) : (
         <div className="space-y-2">
           {groups.map((g, i) => {
-            const key = `${g.name}|${g.brand}`;
-            const isOpen = open === key;
             const sortedDates = g.dates.map((d) => new Date(d)).sort((a, b) => b.getTime() - a.getTime());
             let avgDays = 0;
             if (sortedDates.length >= 2) {
@@ -87,9 +88,9 @@ function ConsumptionPage() {
               avgDays = Math.round(diffs.reduce((s, x) => s + x, 0) / diffs.length);
             }
             return (
-              <motion.div key={key} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+              <motion.div key={g.key} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 className="glass p-4">
-                <button className="w-full text-left" onClick={() => setOpen(isOpen ? null : key)}>
+                <button className="w-full text-left" onClick={() => setOpenKey(g.key)}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold truncate">{g.name}</p>
@@ -105,22 +106,16 @@ function ConsumptionPage() {
                     <span>Bought {g.count}×</span>
                     {avgDays > 0 && <span>· Every ~{avgDays} day{avgDays === 1 ? "" : "s"}</span>}
                     <span>· {getCategory(g.category).label}</span>
+                    <span className="ml-auto text-violet-300">View details →</span>
                   </div>
                 </button>
-                {isOpen && (
-                  <div className="mt-3 border-t border-white/10 pt-3 space-y-1">
-                    {sortedDates.map((d, idx) => (
-                      <div key={idx} className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{shortDate(d)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </motion.div>
             );
           })}
         </div>
       )}
+
+      <ItemDetailSheet itemKey={openKey} onClose={() => setOpenKey(null)} />
     </div>
   );
 }
