@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, getCategory } from "@/lib/categories";
-import { money, shortDate, daysBetween } from "@/lib/format";
+import { money, daysBetween } from "@/lib/format";
 import { ItemDetailSheet } from "@/components/ItemDetailSheet";
 
 export const Route = createFileRoute("/_authenticated/consumption")({
