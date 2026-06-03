@@ -18,17 +18,18 @@ function HomePage() {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-      const [{ data: thisMonth }, { data: lastMonth }, { data: recent }] = await Promise.all([
-        supabase.from("bills").select("total, bill_date, currency").gte("bill_date", monthStart),
-        supabase.from("bills").select("total, currency").gte("bill_date", lastMonthStart).lt("bill_date", monthStart),
+      const [{ data: thisItems }, { data: lastItems }, { data: thisBills }, { data: recent }] = await Promise.all([
+        supabase.from("items").select("price, bill_date, category, bill:bills(currency)").gte("bill_date", monthStart),
+        supabase.from("items").select("price").gte("bill_date", lastMonthStart).lt("bill_date", monthStart),
+        supabase.from("bills").select("id, currency").gte("bill_date", monthStart),
         supabase.from("bills").select("id, store, bill_date, category, total, currency").order("bill_date", { ascending: false }).limit(5),
       ]);
-      const thisTotal = (thisMonth ?? []).reduce((s, b) => s + Number(b.total), 0);
-      const lastTotal = (lastMonth ?? []).reduce((s, b) => s + Number(b.total), 0);
+      const thisTotal = (thisItems ?? []).reduce((s, it) => s + Number(it.price), 0);
+      const lastTotal = (lastItems ?? []).reduce((s, it) => s + Number(it.price), 0);
       const cc = new Map<string, number>();
-      for (const b of [...(thisMonth ?? []), ...(recent ?? [])]) cc.set(b.currency ?? "INR", (cc.get(b.currency ?? "INR") ?? 0) + 1);
+      for (const b of [...(thisBills ?? []), ...(recent ?? [])]) cc.set(b.currency ?? "INR", (cc.get(b.currency ?? "INR") ?? 0) + 1);
       const currency = [...cc.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
-      return { thisTotal, lastTotal, thisMonth: thisMonth ?? [], recent: recent ?? [], currency };
+      return { thisTotal, lastTotal, thisMonth: thisBills ?? [], recent: recent ?? [], currency };
     },
   });
 
