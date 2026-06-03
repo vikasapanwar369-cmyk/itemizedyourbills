@@ -214,7 +214,6 @@ export const scanBill = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ScanInput.parse(input))
   .handler(async ({ data }) => {
     const tax = await loadTaxonomy();
-    const catKeyById = new Map(tax.categories.map((c) => [c.id, c.key]));
     // Match the user's fixed category enum (label) to our taxonomy rows by label/key.
     const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
     const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
