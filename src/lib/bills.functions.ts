@@ -201,91 +201,108 @@ export const scanBill = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const tax = await loadTaxonomy();
     const catKeyById = new Map(tax.categories.map((c) => [c.id, c.key]));
-    const prompt = SYSTEM_PROMPT.replace(
-      "{TAXONOMY}",
-      buildTaxonomyPrompt(tax.categories, tax.subcategories, catKeyById),
-    );
+    // Match the user's fixed category enum (label) to our taxonomy rows by label/key.
+    const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
+    const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
 
     const json = await callGateway({
       model: "google/gemini-2.5-pro",
+      temperature: 0.1,
       messages: [
-        { role: "system", content: prompt },
+        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: [
-            { type: "text", text: "Parse this bill. Call submit_parsed_bill with the result." },
+            { type: "text", text: "Parse this bill. Return ONLY raw JSON as specified." },
             { type: "image_url", image_url: { url: dataUrl } },
           ],
         },
       ],
-      tools: [TOOL_SCHEMA],
-      tool_choice: { type: "function", function: { name: "submit_parsed_bill" } },
+      response_format: { type: "json_object" },
     });
 
-    const args = extractToolArgs(json) as {
-      store?: string;
-      date?: string;
+    const parsed = extractJsonContent(json) as {
+      bill_date?: string;
+      merchant_name?: string;
+      payment_mode?: string;
+      grand_total?: number;
       currency?: string;
       country?: string;
       locale?: string;
-      category_key?: string;
       subtotal?: number;
       tax?: number;
       discount?: number;
-      total?: number;
       items?: Array<{
         name: string;
-        canonical_name?: string;
-        brand?: string;
-        qty?: number;
+        brand?: string | null;
+        company?: string | null;
+        category?: string;
+        sub_category?: string;
+        quantity?: number;
         unit?: string;
+        unit_weight_or_volume?: string | null;
+        mrp?: number | null;
         unit_price?: number;
-        price?: number;
-        category_key?: string;
-        subcategory_key?: string;
-        confidence?: number;
+        discount?: number;
+        total_price?: number;
+        gst_percent?: number | null;
       }>;
     };
 
-    const billCatKey = (args.category_key && tax.catIdByKey.has(args.category_key)) ? args.category_key : "other";
-    const billCatId = tax.catIdByKey.get(billCatKey) ?? null;
+    const resolveCat = (label?: string) => {
+      const l = (label ?? "").toLowerCase().trim();
+      const key = catKeyByLabel.get(l) ?? "other";
+      const id = catIdByLabel.get(l) ?? tax.catIdByKey.get("other") ?? null;
+      return { key, id, label: label || "Other" };
+    };
 
-    const items = (args.items ?? []).map((it) => {
-      const ck = it.category_key && tax.catIdByKey.has(it.category_key) ? it.category_key : "other";
-      const sk = it.subcategory_key && tax.subIdByKeyByCat.get(ck)?.has(it.subcategory_key) ? it.subcategory_key : "";
+    const items = (parsed.items ?? []).map((it) => {
+      const cat = resolveCat(it.category);
+      const qty = Number(it.quantity ?? 1) || 1;
+      const total = Number(it.total_price ?? 0);
+      const unitPrice = Number(it.unit_price ?? (qty > 0 ? total / qty : 0));
       return {
         name: it.name,
-        canonical_name: (it.canonical_name ?? "").toLowerCase().trim() || it.name.toLowerCase().trim(),
+        canonical_name: (it.name ?? "").toLowerCase().trim(),
         brand: it.brand || "Local",
-        qty: Number(it.qty ?? 1),
+        company: it.company ?? null,
+        qty,
         unit: it.unit || "pcs",
-        unitPrice: Number(it.unit_price ?? 0),
-        price: Number(it.price ?? 0),
-        sub: sk
-          ? (tax.subcategories.find((s) => s.key === sk && catKeyById.get(s.category_id) === ck)?.label ?? "Other")
-          : "Other",
-        category: ck,
-        category_id: tax.catIdByKey.get(ck) ?? null,
-        subcategory_id: sk ? (tax.subIdByKeyByCat.get(ck)?.get(sk) ?? null) : null,
-        confidence: Math.max(0, Math.min(1, Number(it.confidence ?? 0.7))),
+        unit_weight_or_volume: it.unit_weight_or_volume ?? null,
+        mrp: it.mrp == null ? null : Number(it.mrp),
+        unitPrice,
+        price: total,
+        gst_percent: it.gst_percent == null ? null : Number(it.gst_percent),
+        sub: it.sub_category || "Other",
+        category: cat.key,
+        category_id: cat.id,
+        subcategory_id: null as string | null,
+        confidence: 0.9,
       };
     });
+
+    // Dominant category across items
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
+    const billCatKey = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "other";
+    const billCatId = tax.catIdByKey.get(billCatKey) ?? null;
 
     if (!items.length) throw new Error("No items detected on this bill. Try a clearer photo.");
 
     return ScannedBillSchema.parse({
-      store: args.store ?? "Unknown",
-      date: args.date,
+      store: parsed.merchant_name ?? "Unknown",
+      date: parsed.bill_date,
       category: billCatKey,
       category_id: billCatId,
-      currency: (args.currency ?? "INR").toUpperCase(),
-      country: (args.country ?? "IN").toUpperCase(),
-      locale: args.locale ?? "en-IN",
-      total: Number(args.total ?? 0) || items.reduce((s, it) => s + it.price, 0),
-      subtotal: Number(args.subtotal ?? 0),
-      tax: Number(args.tax ?? 0),
-      discount: Number(args.discount ?? 0),
+      currency: (parsed.currency ?? "INR").toUpperCase(),
+      country: (parsed.country ?? "IN").toUpperCase(),
+      locale: parsed.locale ?? "en-IN",
+      total: Number(parsed.grand_total ?? 0) || items.reduce((s, it) => s + it.price, 0),
+      subtotal: Number(parsed.subtotal ?? 0),
+      tax: Number(parsed.tax ?? 0),
+      discount: Number(parsed.discount ?? 0),
+      payment_mode: (parsed.payment_mode ?? "unknown").toLowerCase(),
       items,
     });
   });
