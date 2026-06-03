@@ -195,6 +195,20 @@ function extractToolArgs(json: unknown): unknown {
   throw new Error("AI returned an unreadable response.");
 }
 
+function extractJsonContent(json: unknown): unknown {
+  const j = json as { choices?: Array<{ message?: { content?: string } }> };
+  const content = j?.choices?.[0]?.message?.content ?? "";
+  if (typeof content !== "string" || !content.trim()) {
+    throw new Error("AI returned an empty response.");
+  }
+  try { return JSON.parse(content); } catch { /* try to recover */ }
+  const m = content.match(/\{[\s\S]*\}/);
+  if (m) {
+    try { return JSON.parse(m[0]); } catch { /* noop */ }
+  }
+  throw new Error("AI returned an unreadable response.");
+}
+
 export const scanBill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ScanInput.parse(input))
