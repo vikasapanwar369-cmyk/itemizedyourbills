@@ -12,10 +12,14 @@ const ScannedItemSchema = z.object({
   name: z.string(),
   canonical_name: z.string().default(""),
   brand: z.string().default("Local"),
+  company: z.string().nullable().default(null),
   qty: z.coerce.number().default(1),
   unit: z.string().default("pcs"),
+  unit_weight_or_volume: z.string().nullable().default(null),
+  mrp: z.coerce.number().nullable().default(null),
   unitPrice: z.coerce.number().default(0),
   price: z.coerce.number().default(0),
+  gst_percent: z.coerce.number().nullable().default(null),
   sub: z.string().default("Other"),
   category: z.string().default("other"),
   category_id: z.string().nullable().default(null),
@@ -35,6 +39,7 @@ const ScannedBillSchema = z.object({
   subtotal: z.coerce.number().default(0),
   tax: z.coerce.number().default(0),
   discount: z.coerce.number().default(0),
+  payment_mode: z.string().default("unknown"),
   items: z.array(ScannedItemSchema).default([]),
 });
 
