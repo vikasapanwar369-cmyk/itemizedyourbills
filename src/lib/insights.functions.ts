@@ -98,6 +98,129 @@ function buildInsight(g: {
 
 export type RepeatInsight = ReturnType<typeof buildInsight>;
 
+export const getItemDetail = createServerFn({ method: "GET" })
+  .inputValidator((data: { key: string }) => data)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { userId, supabase } = context;
+    const [itemsR, billsR] = await Promise.all([
+      supabase
+        .from("items")
+        .select("id, name, canonical_name, brand, company, qty, unit, unit_weight_or_volume, unit_price, price, mrp, gst_percent, sub, category, bill_date, bill_id")
+        .eq("user_id", userId)
+        .order("bill_date", { ascending: false }),
+      supabase.from("bills").select("id, store, currency, image_url, payment_mode").eq("user_id", userId),
+    ]);
+    if (itemsR.error) throw new Error(itemsR.error.message);
+    if (billsR.error) throw new Error(billsR.error.message);
+
+    const items = (itemsR.data ?? []);
+    const billMap = new Map((billsR.data ?? []).map((b) => [b.id, b]));
+    const targetKey = data.key;
+
+    const matching = items.filter((it) => {
+      const canon = it.canonical_name && it.canonical_name.trim() ? norm(it.canonical_name) : "";
+      const k = canon || `${norm(it.name)}|${norm(it.brand)}`;
+      return k === targetKey;
+    });
+
+    if (matching.length === 0) return null;
+
+    const occurrences = matching.map((it) => {
+      const bill = billMap.get(it.bill_id);
+      return {
+        itemId: it.id,
+        billId: it.bill_id,
+        date: it.bill_date,
+        name: it.name,
+        brand: it.brand,
+        company: it.company,
+        qty: Number(it.qty) || 1,
+        unit: it.unit,
+        unitWeightOrVolume: it.unit_weight_or_volume,
+        unitPrice: Number(it.unit_price) || 0,
+        price: Number(it.price) || 0,
+        mrp: it.mrp != null ? Number(it.mrp) : null,
+        gstPercent: it.gst_percent != null ? Number(it.gst_percent) : null,
+        sub: it.sub,
+        category: it.category,
+        store: bill?.store ?? "Unknown",
+        currency: bill?.currency ?? "INR",
+        imageUrl: bill?.image_url ?? null,
+        paymentMode: bill?.payment_mode ?? null,
+      };
+    });
+
+    const sortedAsc = occurrences.slice().sort((a, b) => +new Date(a.date) - +new Date(b.date));
+    const gaps: number[] = [];
+    const dates = sortedAsc.map((o) => +new Date(o.date));
+    for (let i = 1; i < dates.length; i++) {
+      const d = (dates[i] - dates[i - 1]) / DAY;
+      if (d > 0) gaps.push(d);
+    }
+    const avgGap = gaps.length ? gaps.reduce((s, x) => s + x, 0) / gaps.length : 0;
+    const last = dates[dates.length - 1];
+    const nextDue = avgGap > 0 ? last + avgGap * DAY : 0;
+
+    const totalQty = occurrences.reduce((s, o) => s + o.qty, 0);
+    const totalSpent = occurrences.reduce((s, o) => s + o.price, 0);
+    const firstUP = sortedAsc[0].unitPrice;
+    const lastUP = sortedAsc[sortedAsc.length - 1].unitPrice;
+    const priceDelta = firstUP > 0 ? ((lastUP - firstUP) / firstUP) * 100 : 0;
+    const minUP = Math.min(...occurrences.map((o) => o.unitPrice).filter((p) => p > 0));
+    const maxUP = Math.max(...occurrences.map((o) => o.unitPrice));
+    const avgUP = occurrences.length ? occurrences.reduce((s, o) => s + o.unitPrice, 0) / occurrences.length : 0;
+
+    const storeMap = new Map<string, { sum: number; n: number; spent: number; currency: string }>();
+    for (const o of occurrences) {
+      const cur = storeMap.get(o.store) ?? { sum: 0, n: 0, spent: 0, currency: o.currency };
+      cur.sum += o.unitPrice;
+      cur.n += 1;
+      cur.spent += o.price;
+      cur.currency = o.currency;
+      storeMap.set(o.store, cur);
+    }
+    const stores = [...storeMap.entries()]
+      .map(([store, v]) => ({ store, avgUnitPrice: v.n ? v.sum / v.n : 0, times: v.n, totalSpent: v.spent, currency: v.currency }))
+      .sort((a, b) => a.avgUnitPrice - b.avgUnitPrice);
+
+    const cm = new Map<string, number>();
+    for (const o of occurrences) cm.set(o.currency, (cm.get(o.currency) ?? 0) + 1);
+    const currency = [...cm.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
+
+    const head = occurrences[0];
+    return {
+      key: targetKey,
+      name: head.name,
+      brand: head.brand,
+      company: head.company,
+      sub: head.sub,
+      category: head.category,
+      unit: head.unit,
+      unitWeightOrVolume: head.unitWeightOrVolume,
+      currency,
+      count: occurrences.length,
+      totalQty,
+      totalSpent,
+      avgGapDays: Math.round(avgGap),
+      lastDate: new Date(last).toISOString(),
+      firstDate: new Date(dates[0]).toISOString(),
+      nextDueDate: nextDue ? new Date(nextDue).toISOString() : null,
+      daysUntilDue: nextDue ? Math.round((nextDue - Date.now()) / DAY) : null,
+      firstUnitPrice: firstUP,
+      lastUnitPrice: lastUP,
+      minUnitPrice: isFinite(minUP) ? minUP : 0,
+      maxUnitPrice: maxUP,
+      avgUnitPrice: avgUP,
+      priceDeltaPct: priceDelta,
+      stores,
+      cheapestStore: stores[0]?.store ?? null,
+      occurrences: occurrences.sort((a, b) => +new Date(b.date) - +new Date(a.date)),
+    };
+  });
+
+export type ItemDetail = NonNullable<Awaited<ReturnType<typeof getItemDetail>>>;
+
 export const getInsights = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
