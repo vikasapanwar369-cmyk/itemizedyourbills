@@ -17,6 +17,8 @@ export type Database = {
       bills: {
         Row: {
           bill_date: string
+          bill_number: string | null
+          bill_time: string | null
           category: string
           content_hash: string | null
           country: string
@@ -27,6 +29,7 @@ export type Database = {
           image_phash: string | null
           image_url: string | null
           locale: string
+          merchant_address: string | null
           payment_mode: string
           store: string
           subtotal: number
@@ -36,6 +39,8 @@ export type Database = {
         }
         Insert: {
           bill_date?: string
+          bill_number?: string | null
+          bill_time?: string | null
           category?: string
           content_hash?: string | null
           country?: string
@@ -46,6 +51,7 @@ export type Database = {
           image_phash?: string | null
           image_url?: string | null
           locale?: string
+          merchant_address?: string | null
           payment_mode?: string
           store?: string
           subtotal?: number
@@ -55,6 +61,8 @@ export type Database = {
         }
         Update: {
           bill_date?: string
+          bill_number?: string | null
+          bill_time?: string | null
           category?: string
           content_hash?: string | null
           country?: string
@@ -65,6 +73,7 @@ export type Database = {
           image_phash?: string | null
           image_url?: string | null
           locale?: string
+          merchant_address?: string | null
           payment_mode?: string
           store?: string
           subtotal?: number
@@ -114,6 +123,7 @@ export type Database = {
           category_id: string | null
           company: string | null
           created_at: string
+          discount: number
           gst_percent: number | null
           id: string
           mrp: number | null
@@ -139,6 +149,7 @@ export type Database = {
           category_id?: string | null
           company?: string | null
           created_at?: string
+          discount?: number
           gst_percent?: number | null
           id?: string
           mrp?: number | null
@@ -164,6 +175,7 @@ export type Database = {
           category_id?: string | null
           company?: string | null
           created_at?: string
+          discount?: number
           gst_percent?: number | null
           id?: string
           mrp?: number | null
