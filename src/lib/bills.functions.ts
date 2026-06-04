@@ -19,6 +19,7 @@ const ScannedItemSchema = z.object({
   mrp: z.coerce.number().nullable().default(null),
   unitPrice: z.coerce.number().default(0),
   price: z.coerce.number().default(0),
+  discount: z.coerce.number().default(0),
   gst_percent: z.coerce.number().nullable().default(null),
   sub: z.string().default("Other"),
   category: z.string().default("other"),
@@ -30,6 +31,9 @@ const ScannedItemSchema = z.object({
 const ScannedBillSchema = z.object({
   store: z.string().default("Unknown"),
   date: z.string().optional(),
+  time: z.string().nullable().default(null),
+  bill_number: z.string().nullable().default(null),
+  merchant_address: z.string().nullable().default(null),
   category: z.string().default("other"),
   category_id: z.string().nullable().default(null),
   currency: z.string().default("INR"),
@@ -93,28 +97,37 @@ const SYSTEM_PROMPT = `You are BillSnap, an expert Indian household bill parser.
 
 Your output MUST always be a valid JSON object — nothing else. No explanation, no markdown, no extra text. Just raw JSON.
 
-Extract the following for EVERY item on the bill:
-- name: Clean product name (e.g., "Lux Soap")
-- brand: Brand name (e.g., "Lux") or null
-- company: Parent manufacturer (e.g., "HUL") or null
-- category: One of — Groceries, Personal Care, Medicines, Dairy, Beverages, Snacks, Household, Electronics, Clothing, Stationery, Baby Care, Other
-- sub_category: Specific type (e.g., "Soap", "Rice", "Antibiotic")
-- quantity: Number of units (integer)
-- unit: "pcs", "kg", "g", "L", "ml", or "pack"
-- unit_weight_or_volume: Weight/volume of ONE unit as string (e.g., "125g", "500ml") or null
-- mrp: MRP per unit if shown, else null
-- unit_price: Actual price per unit (number)
-- discount: Discount on this item in rupees (0 if none)
-- total_price: Total charged for this item (number)
-- gst_percent: GST % if shown, else null
+Extract the following for EVERY single line item on the bill:
+- name: Clean product name (e.g., Lux Soap, Tata Salt, Crocin 500mg, Amul Milk)
+- brand: Brand name (e.g., Lux, Tata, Amul) or null
+- company: Parent manufacturer (e.g., HUL, Tata Consumer Products, Amul) or null
+- category: One of — Groceries, Personal Care, Medicines, Dairy, Beverages, Snacks, Household, Electronics, Clothing, Footwear, Stationery, Baby Care, Restaurant, Fuel, Utilities, Doctor Visit, Other
+- sub_category: Specific type like Soap, Rice, Antibiotic, Cooking Oil, Shampoo, Biscuit, Detergent
+- quantity: Number of units bought (integer, default 1)
+- unit: pcs or kg or g or L or ml or pack or dozen or pair
+- unit_weight_or_volume: Weight or volume of ONE unit as string like 125g or 500ml or 1kg or null
+- mrp: Maximum Retail Price per unit if shown on bill, else null
+- unit_price: Actual selling price per unit after any discount (number)
+- discount: Discount on this item in rupees, use 0 if none
+- total_price: Total amount charged for this item (number)
+- gst_percent: GST percentage on this item if shown, else null
 
-Also extract bill metadata:
-- bill_date: YYYY-MM-DD format
-- merchant_name: Shop/store name
-- payment_mode: "cash", "upi", "card", or "unknown"
-- grand_total: Final amount paid (number)
+Also extract this bill-level info:
+- bill_date: Date in YYYY-MM-DD format
+- bill_time: Time in HH:MM 24hr format or null
+- bill_number: Invoice number if printed or null
+- merchant_name: Shop or store name like D-Mart or Apollo Pharmacy or Sharma Medical
+- merchant_address: Store address if printed or null
+- payment_mode: cash or upi or card or unknown
+- grand_total: Final total amount paid (number)
+- total_discount: Total discount on whole bill (number, 0 if none)
+- total_tax: Total GST or tax amount if shown or null
 
-Return ONLY valid JSON in this exact schema. No markdown, no explanation.`;
+RULES:
+- Return ONLY valid JSON. No markdown. No explanation text.
+- If a field cannot be read from the image use null — never guess randomly
+- For loose items like Tomato 500g at 30 rupees per kg, calculate correctly: unit_weight_or_volume is 500g, unit_price is 15, total_price is 15
+- Merge duplicate line items into one with combined quantity`;
 
 const TOOL_SCHEMA = {
   type: "function" as const,
@@ -237,9 +250,14 @@ export const scanBill = createServerFn({ method: "POST" })
 
     const parsed = extractJsonContent(json) as {
       bill_date?: string;
+      bill_time?: string | null;
+      bill_number?: string | null;
       merchant_name?: string;
+      merchant_address?: string | null;
       payment_mode?: string;
       grand_total?: number;
+      total_discount?: number;
+      total_tax?: number | null;
       currency?: string;
       country?: string;
       locale?: string;
@@ -286,6 +304,7 @@ export const scanBill = createServerFn({ method: "POST" })
         mrp: it.mrp == null ? null : Number(it.mrp),
         unitPrice,
         price: total,
+        discount: Number(it.discount ?? 0) || 0,
         gst_percent: it.gst_percent == null ? null : Number(it.gst_percent),
         sub: it.sub_category || "Other",
         category: cat.key,
@@ -306,6 +325,9 @@ export const scanBill = createServerFn({ method: "POST" })
     return ScannedBillSchema.parse({
       store: parsed.merchant_name ?? "Unknown",
       date: parsed.bill_date,
+      time: parsed.bill_time ?? null,
+      bill_number: parsed.bill_number ?? null,
+      merchant_address: parsed.merchant_address ?? null,
       category: billCatKey,
       category_id: billCatId,
       currency: (parsed.currency ?? "INR").toUpperCase(),
@@ -313,8 +335,8 @@ export const scanBill = createServerFn({ method: "POST" })
       locale: parsed.locale ?? "en-IN",
       total: Number(parsed.grand_total ?? 0) || items.reduce((s, it) => s + it.price, 0),
       subtotal: Number(parsed.subtotal ?? 0),
-      tax: Number(parsed.tax ?? 0),
-      discount: Number(parsed.discount ?? 0),
+      tax: Number(parsed.total_tax ?? parsed.tax ?? 0),
+      discount: Number(parsed.total_discount ?? parsed.discount ?? 0),
       payment_mode: (parsed.payment_mode ?? "unknown").toLowerCase(),
       items,
     });

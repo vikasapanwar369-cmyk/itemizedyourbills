@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, Upload, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
   component: ScanPage,
 });
 
-type Phase = "idle" | "reading" | "saving" | "dup" | "done";
+type Phase = "idle" | "reading" | "review" | "saving" | "dup" | "done";
 type DupBill = { id: string; store: string; bill_date: string; total: number; currency: string };
 
 function ScanPage() {
@@ -32,6 +32,7 @@ function ScanPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingBill, setPendingBill] = useState<ScannedBill | null>(null);
   const [pendingPhash, setPendingPhash] = useState<string>("");
+  const [draft, setDraft] = useState<ScannedBill | null>(null);
 
   async function onFile(file: File) {
     setPreview(URL.createObjectURL(file));
@@ -51,7 +52,7 @@ function ScanPage() {
         }
       }
 
-      setProgress("Reading bill with AI…");
+      setProgress("Reading your bill…");
       const base64 = await fileToBase64(file);
       const bill = await runScan({ data: { imageBase64: base64, mimeType: file.type || "image/jpeg" } });
 
@@ -71,7 +72,10 @@ function ScanPage() {
         return;
       }
 
-      await persistBill(file, bill, phash, contentHash);
+      setPendingFile(file);
+      setPendingPhash(phash);
+      setDraft(bill);
+      setPhase("review");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
       setPhase("idle");
@@ -99,6 +103,9 @@ function ScanPage() {
         user_id: uid,
         store: bill.store || "Unknown",
         bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
+        bill_time: bill.time ?? null,
+        bill_number: bill.bill_number ?? null,
+        merchant_address: bill.merchant_address ?? null,
         category: bill.category,
         total: computedTotal,
         subtotal: bill.subtotal || 0,
@@ -127,6 +134,7 @@ function ScanPage() {
         mrp: it.mrp ?? null,
         unit_price: Number(it.unitPrice) || 0,
         price: Number(it.price) || 0,
+        discount: Number(it.discount) || 0,
         gst_percent: it.gst_percent ?? null,
         sub: it.sub || "Other",
         category: it.category || bill.category,
@@ -140,10 +148,25 @@ function ScanPage() {
       if (itemsErr) throw itemsErr;
 
       setPhase("done");
-      setProgress(`Saved ${bill.items.length} items from ${bill.store}`);
+      setProgress(`Saved! ${bill.items.length} items added to your ${prettyCat(bill.category)} list`);
       qc.invalidateQueries();
-      toast.success(`Bill saved · ${bill.items.length} items categorized`);
-      setTimeout(() => navigate({ to: "/home" }), 900);
+      toast.success(`Saved · ${bill.items.length} items categorized`);
+      setTimeout(() => navigate({ to: "/home" }), 1100);
+  }
+
+  async function onConfirmDraft() {
+    if (!pendingFile || !draft) return;
+    try {
+      const contentHash = await computeContentHash({
+        store: draft.store,
+        date: draft.date ?? new Date().toISOString(),
+        total: Number(draft.total) || draft.items.reduce((s, it) => s + Number(it.price || 0), 0),
+        items: draft.items.map((it) => it.name),
+      });
+      await persistBill(pendingFile, draft, pendingPhash, contentHash);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    }
   }
 
   async function onSaveAnyway() {
@@ -152,26 +175,17 @@ function ScanPage() {
       let bill = pendingBill;
       if (!bill) {
         setPhase("reading");
-        setProgress("Reading bill with AI…");
+        setProgress("Reading your bill…");
         const base64 = await fileToBase64(pendingFile);
         bill = await runScan({ data: { imageBase64: base64, mimeType: pendingFile.type || "image/jpeg" } });
       }
-      const contentHash = await computeContentHash({
-        store: bill.store,
-        date: bill.date ?? new Date().toISOString(),
-        total: Number(bill.total) || bill.items.reduce((s, it) => s + Number(it.price || 0), 0),
-        items: bill.items.map((it) => it.name),
-      });
-      await persistBill(pendingFile, bill, pendingPhash, contentHash);
+      setDraft(bill);
+      setDup(null);
+      setPhase("review");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
       setPhase("idle");
       setPreview(null);
-    } finally {
-      setDup(null);
-      setPendingFile(null);
-      setPendingBill(null);
-      setPendingPhash("");
     }
   }
 
@@ -187,6 +201,28 @@ function ScanPage() {
     setPendingPhash("");
     setPreview(null);
     setPhase("idle");
+  }
+
+  function updateItem(idx: number, patch: Partial<ScannedBill["items"][number]>) {
+    if (!draft) return;
+    const items = draft.items.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+    setDraft({ ...draft, items, total: items.reduce((s, it) => s + Number(it.price || 0), 0) });
+  }
+  function removeItem(idx: number) {
+    if (!draft) return;
+    const items = draft.items.filter((_, i) => i !== idx);
+    setDraft({ ...draft, items, total: items.reduce((s, it) => s + Number(it.price || 0), 0) });
+  }
+  function addItem() {
+    if (!draft) return;
+    const blank: ScannedBill["items"][number] = {
+      name: "New item", canonical_name: "new item", brand: "Local", company: null,
+      qty: 1, unit: "pcs", unit_weight_or_volume: null, mrp: null,
+      unitPrice: 0, price: 0, discount: 0, gst_percent: null,
+      sub: "Other", category: draft.category, category_id: draft.category_id,
+      subcategory_id: null, confidence: 0.5,
+    };
+    setDraft({ ...draft, items: [...draft.items, blank] });
   }
 
   const busy = phase === "reading" || phase === "saving";
@@ -227,6 +263,60 @@ function ScanPage() {
         </div>
       )}
 
+      {phase === "review" && draft && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pb-8">
+          <div className="glass-strong p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Bill details</p>
+              <span className="text-xs text-emerald-300">Edit anything before saving</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Store" value={draft.store} onChange={(v) => setDraft({ ...draft, store: v })} />
+              <Field label="Date" value={draft.date ?? ""} onChange={(v) => setDraft({ ...draft, date: v })} placeholder="YYYY-MM-DD" />
+              <Field label="Bill #" value={draft.bill_number ?? ""} onChange={(v) => setDraft({ ...draft, bill_number: v || null })} />
+              <Field label="Payment" value={draft.payment_mode} onChange={(v) => setDraft({ ...draft, payment_mode: v })} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">{draft.items.length} items</p>
+              <button onClick={addItem} className="text-xs flex items-center gap-1 text-emerald-300"><Plus className="h-3 w-3" /> Add</button>
+            </div>
+            {draft.items.map((it, idx) => (
+              <div key={idx} className="glass p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <input
+                    value={it.name}
+                    onChange={(e) => updateItem(idx, { name: e.target.value })}
+                    className="flex-1 bg-transparent border-b border-white/10 px-1 py-1 font-medium text-sm focus:outline-none focus:border-violet-400"
+                  />
+                  <button onClick={() => removeItem(idx)} className="text-rose-300/80 hover:text-rose-300"><Trash2 className="h-4 w-4" /></button>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <MiniField label="Brand" value={it.brand} onChange={(v) => updateItem(idx, { brand: v })} />
+                  <MiniField label="Category" value={it.sub} onChange={(v) => updateItem(idx, { sub: v })} />
+                  <MiniField label="Size" value={it.unit_weight_or_volume ?? ""} onChange={(v) => updateItem(idx, { unit_weight_or_volume: v || null })} />
+                  <MiniField label="Qty" value={String(it.qty)} onChange={(v) => updateItem(idx, { qty: Number(v) || 1 })} />
+                  <MiniField label="Unit ₹" value={String(it.unitPrice)} onChange={(v) => updateItem(idx, { unitPrice: Number(v) || 0 })} />
+                  <MiniField label="Total ₹" value={String(it.price)} onChange={(v) => updateItem(idx, { price: Number(v) || 0 })} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="glass-strong p-4 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Grand total</span>
+            <span className="text-xl font-bold tabular">{money(draft.items.reduce((s, it) => s + Number(it.price || 0), 0), draft.currency)}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => { setDraft(null); setPhase("idle"); setPreview(null); }} className="glass py-3 text-sm font-medium">Cancel</button>
+            <button onClick={onConfirmDraft} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white glow-violet">Confirm & save</button>
+          </div>
+        </motion.div>
+      )}
+
       {phase === "dup" && dup && (
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="glass-strong p-5 space-y-4">
           <div className="flex items-start gap-3">
@@ -241,7 +331,7 @@ function ScanPage() {
           {preview && <img src={preview} alt="bill" className="w-full rounded-2xl border border-white/10 max-h-44 object-cover" />}
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onViewOriginal} className="glass py-3 text-sm font-medium">View original</button>
-            <button onClick={onSaveAnyway} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">Save anyway</button>
+            <button onClick={onSaveAnyway} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">Review & save</button>
           </div>
           <button onClick={onCancelDup} className="w-full text-xs text-muted-foreground">Cancel</button>
         </motion.div>
@@ -256,6 +346,37 @@ function ScanPage() {
       )}
     </div>
   );
+}
+
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <label className="block text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
+      />
+    </label>
+  );
+}
+function MiniField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-0.5 w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-violet-400"
+      />
+    </label>
+  );
+}
+
+function prettyCat(key: string) {
+  if (!key) return "Other";
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function fileToBase64(file: File): Promise<string> {
