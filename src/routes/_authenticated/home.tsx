@@ -187,18 +187,19 @@ function HomePage() {
         ) : (
           <div className="space-y-2">
             {data!.recent.map((b, i) => (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-                className="glass flex items-center gap-3 p-3"
-              >
-                <CategoryIcon category={b.category} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="truncate font-medium">{b.store}</p>
-                  <p className="text-xs text-muted-foreground">{shortDate(b.bill_date)}</p>
-                </div>
-                <p className="tabular font-semibold">{money(b.total, b.currency ?? "INR")}</p>
-              </motion.div>
+              <Link key={b.id} to={"/bill/$id" as "/home"} params={{ id: b.id } as never} className="block">
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
+                  className="glass flex items-center gap-3 p-3 cursor-pointer hover:bg-white/[0.07] transition-colors"
+                >
+                  <CategoryIcon category={b.category} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate font-medium">{b.store}</p>
+                    <p className="text-xs text-muted-foreground">{shortDate(b.bill_date)}</p>
+                  </div>
+                  <p className="tabular font-semibold">{money(b.total, b.currency ?? "INR")}</p>
+                </motion.div>
+              </Link>
             ))}
           </div>
         )}
