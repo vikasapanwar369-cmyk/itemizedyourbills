@@ -90,6 +90,8 @@ export const CATEGORIES: Record<CategoryKey, CategoryMeta> = {
   stationery: { key: "stationery", label: "Stationery",  emoji: "✏️", gradient: "from-yellow-500 to-amber-600",   color: "oklch(0.74 0.15 85)" },
   toys:       { key: "toys",       label: "Toys",        emoji: "🧸", gradient: "from-amber-300 to-orange-400",   color: "oklch(0.78 0.13 65)" },
   jewelry:    { key: "jewelry",    label: "Jewelry",     emoji: "💍", gradient: "from-yellow-300 to-amber-500",   color: "oklch(0.82 0.15 90)" },
+  salon:      { key: "salon",      label: "Salon",       emoji: "💇", gradient: "from-pink-500 to-rose-500",      color: "oklch(0.7 0.2 350)"  },
+  doctor:     { key: "doctor",     label: "Doctor",      emoji: "🩺", gradient: "from-teal-400 to-emerald-500",   color: "oklch(0.72 0.14 180)"},
   other:      { key: "other",      label: "Other",       emoji: "📦", gradient: "from-zinc-500 to-slate-600",     color: "oklch(0.6 0.02 260)" },
 };
 
