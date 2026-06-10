@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, Repeat, ShoppingCart, Store, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, Package, PiggyBank, Repeat, ShoppingCart, Store, TrendingDown, TrendingUp } from "lucide-react";
 import { getInsights } from "@/lib/insights.functions";
 import { money, shortDate } from "@/lib/format";
 import { ItemDetailSheet } from "@/components/ItemDetailSheet";
@@ -191,6 +191,49 @@ function InsightsPage() {
                     </button>
                   );
                 })}
+              </div>
+            </Section>
+          )}
+
+          {/* Brand-switch savings */}
+          {data.brandSwap.length > 0 && (
+            <Section title="Switch brand, keep the basics" icon={<PiggyBank className="h-4 w-4 text-emerald-300" />} subtitle="Estimated savings if you swap premium brands for trusted alternatives">
+              <div className="space-y-2">
+                {data.brandSwap.map((s) => (
+                  <button type="button" onClick={() => setOpenKey(s.key)} key={s.key} className="glass p-3 w-full text-left active:scale-[0.99] transition">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{s.name} <span className="text-muted-foreground font-normal">· {s.brand}</span></p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Try <span className="text-foreground">{s.alternative}</span> — about {s.savePct}% cheaper</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold tabular text-emerald-300">+{money(s.monthlySaving, s.currency)}</p>
+                        <p className="text-[10px] text-muted-foreground">/month · {money(s.yearlySaving, s.currency)}/yr</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* Bulk buy advisory */}
+          {data.bulkBuy.length > 0 && (
+            <Section title="Buy in bulk, save trips" icon={<Package className="h-4 w-4 text-amber-300" />} subtitle="Items you buy too often in small quantities">
+              <div className="space-y-2">
+                {data.bulkBuy.map((b) => (
+                  <button type="button" onClick={() => setOpenKey(b.key)} key={b.key} className="glass p-3 w-full text-left active:scale-[0.99] transition">
+                    <p className="font-medium text-sm truncate">{b.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Currently {b.currentQty}{b.unit} every ~{b.currentEveryDays}d ({b.tripsPerMonth}× / month)
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                      <Chip icon={<Package className="h-3 w-3" />}>Try {b.suggestedPack}× pack</Chip>
+                      <Chip className="text-emerald-300">Save ≈ {money(b.monthlySaving, b.currency)}/mo</Chip>
+                      {b.tripsSaved > 0 && <Chip>{b.tripsSaved} fewer trips</Chip>}
+                    </div>
+                  </button>
+                ))}
               </div>
             </Section>
           )}

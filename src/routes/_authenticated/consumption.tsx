@@ -87,13 +87,30 @@ function ConsumptionPage() {
               const diffs = sortedDates.slice(1).map((d, idx) => daysBetween(sortedDates[idx], d));
               avgDays = Math.round(diffs.reduce((s, x) => s + x, 0) / diffs.length);
             }
+            // Refill prediction
+            const lastDate = sortedDates[0];
+            const daysSince = lastDate ? daysBetween(lastDate, new Date()) : 0;
+            const daysUntil = avgDays > 0 ? avgDays - daysSince : null;
+            const pct = avgDays > 0 ? Math.min(100, Math.max(0, (daysSince / avgDays) * 100)) : 0;
+            const status: "stock" | "soon" | "over" | "unknown" =
+              daysUntil === null ? "unknown" : daysUntil < 0 ? "over" : daysUntil <= 3 ? "soon" : "stock";
+            const badge = {
+              stock:   { label: "In stock",     cls: "bg-emerald-500/15 text-emerald-300 border-emerald-400/30" },
+              soon:    { label: "Refill soon",  cls: "bg-amber-500/15 text-amber-300 border-amber-400/30" },
+              over:    { label: "Overdue",      cls: "bg-rose-500/20 text-rose-300 border-rose-400/40" },
+              unknown: { label: "Tracking",     cls: "bg-white/5 text-muted-foreground border-white/10" },
+            }[status];
+            const barColor = status === "over" ? "bg-rose-400" : status === "soon" ? "bg-amber-400" : "bg-emerald-400";
             return (
               <motion.div key={g.key} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 className="glass p-4">
                 <button className="w-full text-left" onClick={() => setOpenKey(g.key)}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{g.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold truncate">{g.name}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
+                      </div>
                       <p className="text-xs text-muted-foreground">{g.brand}</p>
                       <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10">{g.sub}</span>
                     </div>
@@ -102,6 +119,25 @@ function ConsumptionPage() {
                       <p className="tabular text-sm text-emerald-300">{money(g.spend, currency)}</p>
                     </div>
                   </div>
+                  {avgDays > 0 && (
+                    <div className="mt-3">
+                      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`h-full ${barColor}`}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1 tabular">
+                        {status === "over"
+                          ? `Overdue by ${Math.abs(daysUntil!)} day${Math.abs(daysUntil!) === 1 ? "" : "s"}`
+                          : status === "soon"
+                            ? `Refill in ${daysUntil} day${daysUntil === 1 ? "" : "s"}`
+                            : `Next refill in ~${daysUntil} days`}
+                      </p>
+                    </div>
+                  )}
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                     <span>Bought {g.count}×</span>
                     {avgDays > 0 && <span>· Every ~{avgDays} day{avgDays === 1 ? "" : "s"}</span>}

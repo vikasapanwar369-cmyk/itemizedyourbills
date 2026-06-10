@@ -101,8 +101,8 @@ Extract the following for EVERY single line item on the bill:
 - name: Clean product name (e.g., Lux Soap, Tata Salt, Crocin 500mg, Amul Milk)
 - brand: Brand name (e.g., Lux, Tata, Amul) or null
 - company: Parent manufacturer (e.g., HUL, Tata Consumer Products, Amul) or null
-- category: One of — Groceries, Personal Care, Medicines, Dairy, Beverages, Snacks, Household, Electronics, Clothing, Footwear, Stationery, Baby Care, Restaurant, Fuel, Utilities, Doctor Visit, Other
-- sub_category: Specific type like Soap, Rice, Antibiotic, Cooking Oil, Shampoo, Biscuit, Detergent
+- category: One of — Grocery, Produce, Dairy, Beverages, Snacks, Bakery, Household, Hygiene, Beauty, Medicine, Salon, Doctor, Appliances, Electronics, Mobile, Clothing, Footwear, Furniture, Stationery, Baby, Pets, Restaurant, Fuel, Utility, Transport, Travel, Entertainment, Sports, Services, Jewelry, Other
+- sub_category: A short e-commerce style path "Parent > Child" — e.g. "Personal Care > Hair Styling" (salon), "Electronics > Kitchen Appliances" (appliances), "Health > Consultation" (doctor), "Grocery > Cooking Oil", "Dairy > Butter"
 - quantity: Number of units bought (integer, default 1)
 - unit: pcs or kg or g or L or ml or pack or dozen or pair
 - unit_weight_or_volume: Weight or volume of ONE unit as string like 125g or 500ml or 1kg or null
