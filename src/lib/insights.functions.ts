@@ -300,12 +300,92 @@ export const getInsights = createServerFn({ method: "GET" })
       })
       .slice(0, 20);
 
+    // ---- Brand-switching savings ----
+    // Premium brands → typical generic equivalents. Savings estimated at 22% of monthly spend.
+    const PREMIUM: Record<string, { generic: string; savePct: number }> = {
+      amul:          { generic: "store-brand dairy",    savePct: 0.18 },
+      "mother dairy":{ generic: "local dairy",          savePct: 0.15 },
+      nestle:        { generic: "store-brand",          savePct: 0.20 },
+      dettol:        { generic: "Savlon / store soap",  savePct: 0.25 },
+      lifebuoy:      { generic: "store-brand soap",     savePct: 0.20 },
+      dove:          { generic: "store-brand soap",     savePct: 0.30 },
+      "surf excel":  { generic: "Wheel / Tide basic",   savePct: 0.28 },
+      ariel:         { generic: "Wheel / store brand",  savePct: 0.25 },
+      tide:          { generic: "Wheel / store brand",  savePct: 0.22 },
+      colgate:       { generic: "store-brand paste",    savePct: 0.30 },
+      sensodyne:     { generic: "Colgate / store",      savePct: 0.25 },
+      kelloggs:      { generic: "store-brand cereal",   savePct: 0.30 },
+      maggi:         { generic: "store-brand noodles",  savePct: 0.20 },
+      bisleri:       { generic: "store-brand water",    savePct: 0.30 },
+      himalaya:      { generic: "store-brand",          savePct: 0.20 },
+      pampers:       { generic: "Mamy Poko / store",    savePct: 0.25 },
+      huggies:       { generic: "Mamy Poko / store",    savePct: 0.22 },
+    };
+    const monthMs = 30 * DAY;
+    const since = Date.now() - monthMs;
+    const brandSwap = insights
+      .map((i) => {
+        const swap = PREMIUM[i.brand?.toLowerCase?.() ?? ""];
+        if (!swap) return null;
+        const recent = i.totalSpent && i.count
+          ? (i.totalSpent / i.count) * Math.max(1, Math.round(monthMs / (i.avgGapDays * DAY || monthMs)))
+          : 0;
+        const monthlySpend = recent || (i.lastUnitPrice * i.avgQty);
+        const monthlySaving = monthlySpend * swap.savePct;
+        if (monthlySaving < 5) return null;
+        return {
+          key: i.key,
+          name: i.name,
+          brand: i.brand,
+          alternative: swap.generic,
+          savePct: Math.round(swap.savePct * 100),
+          monthlySpend,
+          monthlySaving,
+          yearlySaving: monthlySaving * 12,
+          currency: i.currency,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.monthlySaving - a.monthlySaving)
+      .slice(0, 10);
+
+    // ---- Bulk-buy advisory ----
+    // Items bought very frequently in small quantities → buying ~4× pack saves trips & ~10%.
+    const bulkBuy = insights
+      .filter((i) => i.avgGapDays > 0 && i.avgGapDays <= 4 && i.count >= 3 && i.avgQty <= 2)
+      .map((i) => {
+        const tripsPerMonth = Math.max(1, Math.round(30 / i.avgGapDays));
+        const suggestedPack = Math.max(2, Math.round(tripsPerMonth / 2));
+        const monthlySpend = i.lastUnitPrice * i.avgQty * tripsPerMonth;
+        const estSaving = monthlySpend * 0.10;
+        const tripsSaved = tripsPerMonth - Math.ceil(tripsPerMonth / suggestedPack);
+        return {
+          key: i.key,
+          name: i.name,
+          brand: i.brand,
+          unit: i.unit,
+          currentQty: i.avgQty,
+          currentEveryDays: i.avgGapDays,
+          suggestedPack,
+          tripsPerMonth,
+          tripsSaved,
+          monthlySaving: estSaving,
+          yearlySaving: estSaving * 12,
+          currency: i.currency,
+        };
+      })
+      .sort((a, b) => b.monthlySaving - a.monthlySaving)
+      .slice(0, 10);
+    void since; // reserved for future windowing
+
     return {
       repeats,
       lowStock,
       priceAlerts,
       shoppingList,
       storeCompare,
+      brandSwap,
+      bulkBuy,
       totalItemsTracked: insights.length,
       totalItems: items.length,
     };
