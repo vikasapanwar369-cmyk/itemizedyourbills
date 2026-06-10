@@ -37,6 +37,8 @@ export type CategoryKey =
   | "stationery"
   | "toys"
   | "jewelry"
+  | "salon"
+  | "doctor"
   | "other";
 
 export interface CategoryMeta {
