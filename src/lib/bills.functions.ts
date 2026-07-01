@@ -5,7 +5,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ScanInput = z.object({
   imageBase64: z.string().min(100).max(15_000_000),
-  mimeType: z.string().default("image/jpeg"),
+  mimeType: z
+    .enum(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"])
+    .default("image/jpeg"),
 });
 
 const ScannedItemSchema = z.object({
