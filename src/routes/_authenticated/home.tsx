@@ -297,3 +297,51 @@ function QuickStat({ icon, value, label }: { icon: React.ReactNode; value: numbe
     </div>
   );
 }
+
+function SectionLink({
+  to, title, icon, cta, children,
+}: { to: string; title: string; icon: React.ReactNode; cta: string; children: React.ReactNode }) {
+  return (
+    <Link to={to as "/home"} className="block">
+      <div className="glass p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-violet-300">{icon}</span>
+            <p className="font-semibold">{title}</p>
+          </div>
+          <span className="flex items-center gap-1 text-xs text-violet-300">
+            {cta} <ChevronRight className="h-3 w-3" />
+          </span>
+        </div>
+        {children}
+      </div>
+    </Link>
+  );
+}
+
+function BudgetRing({ b }: { b: { category: string; pct: number; status: "ok" | "watch" | "over"; spent: number; limit: number; currency: string } }) {
+  const meta = getCategory(b.category);
+  const clamped = Math.min(100, b.pct);
+  const color = b.status === "over" ? "oklch(0.7 0.2 15)" : b.status === "watch" ? "oklch(0.78 0.16 75)" : "oklch(0.72 0.17 165)";
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const dash = (clamped / 100) * c;
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-16 w-16">
+        <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+          <motion.circle
+            cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
+            initial={{ strokeDasharray: `0 ${c}` }}
+            animate={{ strokeDasharray: `${dash} ${c}` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center text-base">{meta.emoji}</div>
+      </div>
+      <p className="mt-1.5 text-[11px] font-medium truncate max-w-[80px] text-center">{meta.label}</p>
+      <p className="text-[10px] text-muted-foreground tabular">{b.pct.toFixed(0)}%</p>
+    </div>
+  );
+}
