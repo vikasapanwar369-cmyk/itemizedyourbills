@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
 import { getCategory } from "@/lib/categories";
+import { getBudgetsWithProgress } from "@/lib/budgets.functions";
+import { getShoppingList } from "@/lib/shopping.functions";
+import { getInsights } from "@/lib/insights.functions";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "BillSnap" }] }),
@@ -13,6 +17,13 @@ export const Route = createFileRoute("/_authenticated/home")({
 });
 
 function HomePage() {
+  const fetchBudgets = useServerFn(getBudgetsWithProgress);
+  const fetchShopping = useServerFn(getShoppingList);
+  const fetchInsights = useServerFn(getInsights);
+  const { data: budgetsData } = useQuery({ queryKey: ["budgets"], queryFn: () => fetchBudgets() });
+  const { data: shoppingItems } = useQuery({ queryKey: ["shopping"], queryFn: () => fetchShopping() });
+  const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchInsights() });
+
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -62,6 +73,10 @@ function HomePage() {
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const budgets = budgetsData?.budgets ?? [];
+  const pendingShopping = (shoppingItems ?? []).filter((i) => !i.checked);
+  const upcomingRecurring = (insights?.recurring ?? []).filter((r) => r.daysUntilDue >= -2 && r.daysUntilDue <= 7).slice(0, 3);
 
   return (
     <div className="px-5 pt-8 space-y-6">
@@ -149,6 +164,61 @@ function HomePage() {
         <QuickStat icon={<Package className="h-4 w-4" />} value={data?.uniqueItems ?? 0} label="Items tracked" />
         <QuickStat icon={<Store className="h-4 w-4" />} value={data?.uniqueStores ?? 0} label="Stores visited" />
       </div>
+
+      {/* Budgets */}
+      <SectionLink to="/budgets" title="Budgets" icon={<Target className="h-4 w-4" />} cta={budgets.length ? "Manage" : "Set up"}>
+        {budgets.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Cap your monthly spend by category and track pace in real time.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {budgets.slice(0, 3).map((b) => <BudgetRing key={b.id} b={b} />)}
+          </div>
+        )}
+      </SectionLink>
+
+      {/* Shopping list */}
+      <SectionLink to="/shopping" title="Shopping list" icon={<ShoppingCart className="h-4 w-4" />} cta={pendingShopping.length ? `${pendingShopping.length} items` : "Auto-build"}>
+        {pendingShopping.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Tap through to auto-add refills based on your consumption patterns.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {pendingShopping.slice(0, 3).map((i) => (
+              <div key={i.id} className="flex items-center gap-2 text-sm">
+                <span className="text-lg">{getCategory(i.category).emoji}</span>
+                <span className="flex-1 truncate">{i.name}</span>
+                <span className="text-xs text-muted-foreground tabular">×{Number(i.qty)}</span>
+              </div>
+            ))}
+            {pendingShopping.length > 3 && (
+              <p className="text-[11px] text-muted-foreground pt-0.5">+ {pendingShopping.length - 3} more</p>
+            )}
+          </div>
+        )}
+      </SectionLink>
+
+      {/* Recurring bills */}
+      {upcomingRecurring.length > 0 && (
+        <div className="glass p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-amber-300" />
+            <p className="text-sm font-semibold">Recurring bills coming up</p>
+          </div>
+          <div className="space-y-2">
+            {upcomingRecurring.map((r) => (
+              <div key={`${r.store}-${r.category}`} className="flex items-center gap-3">
+                <CategoryIcon category={r.category} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{r.store}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    ~every {r.cadenceDays}d · {r.daysUntilDue < 0 ? `${Math.abs(r.daysUntilDue)}d overdue` : r.daysUntilDue === 0 ? "due today" : `in ${r.daysUntilDue}d`}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold tabular">{money(r.avgAmount, r.currency)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Scan CTA */}
       <Link to="/scan" className="block">
