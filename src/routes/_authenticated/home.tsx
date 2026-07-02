@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
 import { getCategory } from "@/lib/categories";
+import { getBudgetsWithProgress } from "@/lib/budgets.functions";
+import { getShoppingList } from "@/lib/shopping.functions";
+import { getInsights } from "@/lib/insights.functions";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "BillSnap" }] }),
@@ -13,6 +17,13 @@ export const Route = createFileRoute("/_authenticated/home")({
 });
 
 function HomePage() {
+  const fetchBudgets = useServerFn(getBudgetsWithProgress);
+  const fetchShopping = useServerFn(getShoppingList);
+  const fetchInsights = useServerFn(getInsights);
+  const { data: budgetsData } = useQuery({ queryKey: ["budgets"], queryFn: () => fetchBudgets() });
+  const { data: shoppingItems } = useQuery({ queryKey: ["shopping"], queryFn: () => fetchShopping() });
+  const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchInsights() });
+
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -62,6 +73,10 @@ function HomePage() {
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const budgets = budgetsData?.budgets ?? [];
+  const pendingShopping = (shoppingItems ?? []).filter((i) => !i.checked);
+  const upcomingRecurring = (insights?.recurring ?? []).filter((r) => r.daysUntilDue >= -2 && r.daysUntilDue <= 7).slice(0, 3);
 
   return (
     <div className="px-5 pt-8 space-y-6">
@@ -150,6 +165,61 @@ function HomePage() {
         <QuickStat icon={<Store className="h-4 w-4" />} value={data?.uniqueStores ?? 0} label="Stores visited" />
       </div>
 
+      {/* Budgets */}
+      <SectionLink to="/budgets" title="Budgets" icon={<Target className="h-4 w-4" />} cta={budgets.length ? "Manage" : "Set up"}>
+        {budgets.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Cap your monthly spend by category and track pace in real time.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {budgets.slice(0, 3).map((b) => <BudgetRing key={b.id} b={b} />)}
+          </div>
+        )}
+      </SectionLink>
+
+      {/* Shopping list */}
+      <SectionLink to="/shopping" title="Shopping list" icon={<ShoppingCart className="h-4 w-4" />} cta={pendingShopping.length ? `${pendingShopping.length} items` : "Auto-build"}>
+        {pendingShopping.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Tap through to auto-add refills based on your consumption patterns.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {pendingShopping.slice(0, 3).map((i) => (
+              <div key={i.id} className="flex items-center gap-2 text-sm">
+                <span className="text-lg">{getCategory(i.category).emoji}</span>
+                <span className="flex-1 truncate">{i.name}</span>
+                <span className="text-xs text-muted-foreground tabular">×{Number(i.qty)}</span>
+              </div>
+            ))}
+            {pendingShopping.length > 3 && (
+              <p className="text-[11px] text-muted-foreground pt-0.5">+ {pendingShopping.length - 3} more</p>
+            )}
+          </div>
+        )}
+      </SectionLink>
+
+      {/* Recurring bills */}
+      {upcomingRecurring.length > 0 && (
+        <div className="glass p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-amber-300" />
+            <p className="text-sm font-semibold">Recurring bills coming up</p>
+          </div>
+          <div className="space-y-2">
+            {upcomingRecurring.map((r) => (
+              <div key={`${r.store}-${r.category}`} className="flex items-center gap-3">
+                <CategoryIcon category={r.category} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{r.store}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    ~every {r.cadenceDays}d · {r.daysUntilDue < 0 ? `${Math.abs(r.daysUntilDue)}d overdue` : r.daysUntilDue === 0 ? "due today" : `in ${r.daysUntilDue}d`}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold tabular">{money(r.avgAmount, r.currency)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Scan CTA */}
       <Link to="/scan" className="block">
         <div className="glass relative flex items-center gap-4 p-5 shimmer">
@@ -224,6 +294,54 @@ function QuickStat({ icon, value, label }: { icon: React.ReactNode; value: numbe
       <div className="text-violet-300">{icon}</div>
       <p className="text-xl font-bold tabular">{value}</p>
       <p className="text-[10px] text-muted-foreground leading-tight">{label}</p>
+    </div>
+  );
+}
+
+function SectionLink({
+  to, title, icon, cta, children,
+}: { to: string; title: string; icon: React.ReactNode; cta: string; children: React.ReactNode }) {
+  return (
+    <Link to={to as "/home"} className="block">
+      <div className="glass p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-violet-300">{icon}</span>
+            <p className="font-semibold">{title}</p>
+          </div>
+          <span className="flex items-center gap-1 text-xs text-violet-300">
+            {cta} <ChevronRight className="h-3 w-3" />
+          </span>
+        </div>
+        {children}
+      </div>
+    </Link>
+  );
+}
+
+function BudgetRing({ b }: { b: { category: string; pct: number; status: "ok" | "watch" | "over"; spent: number; limit: number; currency: string } }) {
+  const meta = getCategory(b.category);
+  const clamped = Math.min(100, b.pct);
+  const color = b.status === "over" ? "oklch(0.7 0.2 15)" : b.status === "watch" ? "oklch(0.78 0.16 75)" : "oklch(0.72 0.17 165)";
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const dash = (clamped / 100) * c;
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-16 w-16">
+        <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+          <motion.circle
+            cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
+            initial={{ strokeDasharray: `0 ${c}` }}
+            animate={{ strokeDasharray: `${dash} ${c}` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center text-base">{meta.emoji}</div>
+      </div>
+      <p className="mt-1.5 text-[11px] font-medium truncate max-w-[80px] text-center">{meta.label}</p>
+      <p className="text-[10px] text-muted-foreground tabular">{b.pct.toFixed(0)}%</p>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedShoppingRouteImport } from './routes/_authenticated/shopping'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
@@ -19,6 +20,7 @@ import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedConsumptionRouteImport } from './routes/_authenticated/consumption'
+import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedCategoryKeyRouteImport } from './routes/_authenticated/category.$key'
 import { Route as AuthenticatedBillIdRouteImport } from './routes/_authenticated/bill.$id'
 
@@ -35,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedShoppingRoute = AuthenticatedShoppingRouteImport.update({
+  id: '/shopping',
+  path: '/shopping',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
   id: '/search',
@@ -72,6 +79,11 @@ const AuthenticatedConsumptionRoute =
     path: '/consumption',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
+  id: '/budgets',
+  path: '/budgets',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedCategoryKeyRoute =
   AuthenticatedCategoryKeyRouteImport.update({
     id: '/category/$key',
@@ -87,6 +99,7 @@ const AuthenticatedBillIdRoute = AuthenticatedBillIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -94,12 +107,14 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
+  '/shopping': typeof AuthenticatedShoppingRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -107,6 +122,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
+  '/shopping': typeof AuthenticatedShoppingRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
@@ -115,6 +131,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/consumption': typeof AuthenticatedConsumptionRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
@@ -122,6 +139,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
+  '/_authenticated/shopping': typeof AuthenticatedShoppingRoute
   '/_authenticated/bill/$id': typeof AuthenticatedBillIdRoute
   '/_authenticated/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
@@ -130,6 +148,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/budgets'
     | '/consumption'
     | '/history'
     | '/home'
@@ -137,12 +156,14 @@ export interface FileRouteTypes {
     | '/reports'
     | '/scan'
     | '/search'
+    | '/shopping'
     | '/bill/$id'
     | '/category/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/budgets'
     | '/consumption'
     | '/history'
     | '/home'
@@ -150,6 +171,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/scan'
     | '/search'
+    | '/shopping'
     | '/bill/$id'
     | '/category/$key'
   id:
@@ -157,6 +179,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/budgets'
     | '/_authenticated/consumption'
     | '/_authenticated/history'
     | '/_authenticated/home'
@@ -164,6 +187,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/scan'
     | '/_authenticated/search'
+    | '/_authenticated/shopping'
     | '/_authenticated/bill/$id'
     | '/_authenticated/category/$key'
   fileRoutesById: FileRoutesById
@@ -196,6 +220,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/shopping': {
+      id: '/_authenticated/shopping'
+      path: '/shopping'
+      fullPath: '/shopping'
+      preLoaderRoute: typeof AuthenticatedShoppingRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/search': {
       id: '/_authenticated/search'
@@ -246,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsumptionRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/budgets': {
+      id: '/_authenticated/budgets'
+      path: '/budgets'
+      fullPath: '/budgets'
+      preLoaderRoute: typeof AuthenticatedBudgetsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/category/$key': {
       id: '/_authenticated/category/$key'
       path: '/category/$key'
@@ -264,6 +302,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedConsumptionRoute: typeof AuthenticatedConsumptionRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
@@ -271,11 +310,13 @@ interface AuthenticatedRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
+  AuthenticatedShoppingRoute: typeof AuthenticatedShoppingRoute
   AuthenticatedBillIdRoute: typeof AuthenticatedBillIdRoute
   AuthenticatedCategoryKeyRoute: typeof AuthenticatedCategoryKeyRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedConsumptionRoute: AuthenticatedConsumptionRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
@@ -283,6 +324,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
+  AuthenticatedShoppingRoute: AuthenticatedShoppingRoute,
   AuthenticatedBillIdRoute: AuthenticatedBillIdRoute,
   AuthenticatedCategoryKeyRoute: AuthenticatedCategoryKeyRoute,
 }
@@ -299,13 +341,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

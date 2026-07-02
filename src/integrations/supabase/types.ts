@@ -83,6 +83,36 @@ export type Database = {
         }
         Relationships: []
       }
+      budgets: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string
+          id: string
+          monthly_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          monthly_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -212,6 +242,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shopping_list_items: {
+        Row: {
+          brand: string
+          category: string
+          checked: boolean
+          created_at: string
+          id: string
+          last_price: number | null
+          last_store: string | null
+          name: string
+          qty: number
+          source: string
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string
+          category?: string
+          checked?: boolean
+          created_at?: string
+          id?: string
+          last_price?: number | null
+          last_store?: string | null
+          name: string
+          qty?: number
+          source?: string
+          unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          category?: string
+          checked?: boolean
+          created_at?: string
+          id?: string
+          last_price?: number | null
+          last_store?: string | null
+          name?: string
+          qty?: number
+          source?: string
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subcategories: {
         Row: {

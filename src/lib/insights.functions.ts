@@ -231,7 +231,7 @@ export const getInsights = createServerFn({ method: "GET" })
         .select("name, canonical_name, brand, qty, unit, unit_price, price, sub, category, bill_date, bill_id")
         .eq("user_id", userId)
         .order("bill_date", { ascending: true }),
-      supabase.from("bills").select("id, store, currency").eq("user_id", userId),
+      supabase.from("bills").select("id, store, currency, total, bill_date, category").eq("user_id", userId).order("bill_date", { ascending: true }),
     ]);
     if (itemsR.error) throw new Error(itemsR.error.message);
     if (billsR.error) throw new Error(billsR.error.message);
@@ -378,6 +378,59 @@ export const getInsights = createServerFn({ method: "GET" })
       .slice(0, 10);
     void since; // reserved for future windowing
 
+    // ---- Recurring bills (subscription-style detection) ----
+    // Group bills by store+category, look for ≥2 occurrences with cadence 25-35 days.
+    type Bill = { id: string; store: string; currency: string; total: number; bill_date: string; category: string };
+    const bills = ((billsR.data ?? []) as unknown as Bill[]);
+    const byStore = new Map<string, Bill[]>();
+    for (const b of bills) {
+      const k = `${(b.store ?? "").trim().toLowerCase()}|${b.category}`;
+      const arr = byStore.get(k) ?? [];
+      arr.push(b);
+      byStore.set(k, arr);
+    }
+    const recurring: Array<{
+      store: string; category: string; avgAmount: number; cadenceDays: number;
+      lastDate: string; nextDueDate: string; daysUntilDue: number; count: number;
+      currency: string; confidence: "high" | "medium";
+    }> = [];
+    for (const arr of byStore.values()) {
+      if (arr.length < 2) continue;
+      const sorted = arr.sort((a, b) => +new Date(a.bill_date) - +new Date(b.bill_date));
+      const gaps: number[] = [];
+      for (let i = 1; i < sorted.length; i++) {
+        gaps.push((+new Date(sorted[i].bill_date) - +new Date(sorted[i - 1].bill_date)) / DAY);
+      }
+      const avgGap = gaps.reduce((s, x) => s + x, 0) / gaps.length;
+      // Accept monthly (25-35d), weekly (5-9d), or bi-monthly (55-70d) cadence
+      const monthly = avgGap >= 25 && avgGap <= 35;
+      const weekly = avgGap >= 5 && avgGap <= 9;
+      const biMonthly = avgGap >= 55 && avgGap <= 70;
+      if (!monthly && !weekly && !biMonthly) continue;
+      const totals = sorted.map((b) => Number(b.total));
+      const avgAmount = totals.reduce((s, x) => s + x, 0) / totals.length;
+      const variance = totals.reduce((s, x) => s + Math.pow(x - avgAmount, 2), 0) / totals.length;
+      const stddev = Math.sqrt(variance);
+      const cv = avgAmount > 0 ? stddev / avgAmount : 1;
+      if (cv > 0.35) continue; // too variable to be recurring
+      const last = sorted[sorted.length - 1];
+      const nextDue = +new Date(last.bill_date) + avgGap * DAY;
+      const daysUntilDue = Math.round((nextDue - Date.now()) / DAY);
+      recurring.push({
+        store: last.store,
+        category: last.category,
+        avgAmount,
+        cadenceDays: Math.round(avgGap),
+        lastDate: last.bill_date,
+        nextDueDate: new Date(nextDue).toISOString(),
+        daysUntilDue,
+        count: sorted.length,
+        currency: last.currency ?? "INR",
+        confidence: sorted.length >= 3 && cv < 0.2 ? "high" : "medium",
+      });
+    }
+    recurring.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
     return {
       repeats,
       lowStock,
@@ -386,6 +439,7 @@ export const getInsights = createServerFn({ method: "GET" })
       storeCompare,
       brandSwap,
       bulkBuy,
+      recurring,
       totalItemsTracked: insights.length,
       totalItems: items.length,
     };
