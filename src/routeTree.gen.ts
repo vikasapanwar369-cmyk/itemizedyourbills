@@ -19,6 +19,7 @@ import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedConsumptionRouteImport } from './routes/_authenticated/consumption'
+import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedCategoryKeyRouteImport } from './routes/_authenticated/category.$key'
 import { Route as AuthenticatedBillIdRouteImport } from './routes/_authenticated/bill.$id'
 
@@ -72,6 +73,11 @@ const AuthenticatedConsumptionRoute =
     path: '/consumption',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
+  id: '/budgets',
+  path: '/budgets',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedCategoryKeyRoute =
   AuthenticatedCategoryKeyRouteImport.update({
     id: '/category/$key',
@@ -87,6 +93,7 @@ const AuthenticatedBillIdRoute = AuthenticatedBillIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/consumption': typeof AuthenticatedConsumptionRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/budgets'
     | '/consumption'
     | '/history'
     | '/home'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/budgets'
     | '/consumption'
     | '/history'
     | '/home'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/budgets'
     | '/_authenticated/consumption'
     | '/_authenticated/history'
     | '/_authenticated/home'
@@ -246,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConsumptionRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/budgets': {
+      id: '/_authenticated/budgets'
+      path: '/budgets'
+      fullPath: '/budgets'
+      preLoaderRoute: typeof AuthenticatedBudgetsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/category/$key': {
       id: '/_authenticated/category/$key'
       path: '/category/$key'
@@ -264,6 +283,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedConsumptionRoute: typeof AuthenticatedConsumptionRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
@@ -276,6 +296,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedConsumptionRoute: AuthenticatedConsumptionRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
