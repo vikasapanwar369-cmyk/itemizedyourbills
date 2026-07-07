@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, Upload, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react";
+import { Camera, Upload, CheckCircle2, AlertCircle, Trash2, Plus, Ban } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -30,7 +30,6 @@ function ScanPage() {
 
   const [dup, setDup] = useState<DupBill | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingBill, setPendingBill] = useState<ScannedBill | null>(null);
   const [pendingPhash, setPendingPhash] = useState<string>("");
   const [draft, setDraft] = useState<ScannedBill | null>(null);
 
@@ -45,7 +44,6 @@ function ScanPage() {
         if (pre.found) {
           setDup(pre.found);
           setPendingFile(file);
-          setPendingBill(null);
           setPendingPhash(phash);
           setPhase("dup");
           return;
@@ -66,7 +64,6 @@ function ScanPage() {
       if (post.found) {
         setDup(post.found);
         setPendingFile(file);
-        setPendingBill(bill);
         setPendingPhash(phash);
         setPhase("dup");
         return;
@@ -119,7 +116,17 @@ function ScanPage() {
         image_phash: imagePhash || null,
         content_hash: contentHash || null,
       }).select("id").single();
-      if (error) throw error;
+      if (error) {
+        // 23505 = unique_violation → duplicate bill guardrail at DB level
+        if ((error as { code?: string }).code === "23505") {
+          toast.error("This bill was already scanned earlier.");
+          setPhase("idle");
+          setPreview(null);
+          setDraft(null);
+          return;
+        }
+        throw error;
+      }
 
       const itemsPayload = bill.items.map((it) => ({
         bill_id: inserted!.id,
@@ -163,29 +170,16 @@ function ScanPage() {
         total: Number(draft.total) || draft.items.reduce((s, it) => s + Number(it.price || 0), 0),
         items: draft.items.map((it) => it.name),
       });
+      // Final duplicate guard right before we write
+      const finalCheck = await runDupCheck({ data: { imagePhash: pendingPhash, contentHash } });
+      if (finalCheck.found) {
+        setDup(finalCheck.found);
+        setPhase("dup");
+        return;
+      }
       await persistBill(pendingFile, draft, pendingPhash, contentHash);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
-    }
-  }
-
-  async function onSaveAnyway() {
-    if (!pendingFile || !pendingPhash) return;
-    try {
-      let bill = pendingBill;
-      if (!bill) {
-        setPhase("reading");
-        setProgress("Reading your bill…");
-        const base64 = await fileToBase64(pendingFile);
-        bill = await runScan({ data: { imageBase64: base64, mimeType: pendingFile.type || "image/jpeg" } });
-      }
-      setDraft(bill);
-      setDup(null);
-      setPhase("review");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-      setPhase("idle");
-      setPreview(null);
     }
   }
 
@@ -197,7 +191,6 @@ function ScanPage() {
   function onCancelDup() {
     setDup(null);
     setPendingFile(null);
-    setPendingBill(null);
     setPendingPhash("");
     setPreview(null);
     setPhase("idle");
@@ -320,20 +313,19 @@ function ScanPage() {
       {phase === "dup" && dup && (
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="glass-strong p-5 space-y-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-6 w-6 text-amber-300 shrink-0 mt-0.5" />
+            <Ban className="h-6 w-6 text-rose-300 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Looks like a duplicate</p>
+              <p className="font-semibold">Already scanned</p>
               <p className="text-xs text-muted-foreground mt-1">
-                You already scanned a bill from <span className="text-foreground font-medium">{dup.store}</span> on {shortDate(dup.bill_date)} for {money(dup.total, dup.currency)}.
+                A bill from <span className="text-foreground font-medium">{dup.store}</span> on {shortDate(dup.bill_date)} for {money(dup.total, dup.currency)} is already saved. To keep your history clean, the same bill can't be scanned twice.
               </p>
             </div>
           </div>
           {preview && <img src={preview} alt="bill" className="w-full rounded-2xl border border-white/10 max-h-44 object-cover" />}
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={onViewOriginal} className="glass py-3 text-sm font-medium">View original</button>
-            <button onClick={onSaveAnyway} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">Review & save</button>
+            <button onClick={onCancelDup} className="glass py-3 text-sm font-medium">Scan a different bill</button>
+            <button onClick={onViewOriginal} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">View original</button>
           </div>
-          <button onClick={onCancelDup} className="w-full text-xs text-muted-foreground">Cancel</button>
         </motion.div>
       )}
 

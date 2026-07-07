@@ -198,10 +198,11 @@ function HomePage() {
 
       {/* Recurring bills */}
       {upcomingRecurring.length > 0 && (
-        <div className="glass p-4 space-y-3">
+        <Link to={"/recurring" as "/home"} className="glass p-4 space-y-3 block">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-amber-300" />
             <p className="text-sm font-semibold">Recurring bills coming up</p>
+            <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
           </div>
           <div className="space-y-2">
             {upcomingRecurring.map((r) => (
@@ -217,7 +218,8 @@ function HomePage() {
               </div>
             ))}
           </div>
-        </div>
+          <p className="text-[11px] text-violet-300 font-medium">Review & tune cadence →</p>
+        </Link>
       )}
 
       {/* Scan CTA */}

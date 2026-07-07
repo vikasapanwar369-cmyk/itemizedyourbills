@@ -243,6 +243,57 @@ export type Database = {
           },
         ]
       }
+      recurring_bills: {
+        Row: {
+          avg_amount: number
+          cadence_days: number
+          category: string
+          created_at: string
+          currency: string
+          id: string
+          key: string
+          last_seen_date: string | null
+          next_due_date: string | null
+          note: string | null
+          status: string
+          store: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_amount?: number
+          cadence_days?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          key: string
+          last_seen_date?: string | null
+          next_due_date?: string | null
+          note?: string | null
+          status?: string
+          store: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_amount?: number
+          cadence_days?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          key?: string
+          last_seen_date?: string | null
+          next_due_date?: string | null
+          note?: string | null
+          status?: string
+          store?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       shopping_list_items: {
         Row: {
           brand: string
