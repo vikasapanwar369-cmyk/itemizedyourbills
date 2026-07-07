@@ -30,7 +30,6 @@ function ScanPage() {
 
   const [dup, setDup] = useState<DupBill | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingBill, setPendingBill] = useState<ScannedBill | null>(null);
   const [pendingPhash, setPendingPhash] = useState<string>("");
   const [draft, setDraft] = useState<ScannedBill | null>(null);
 
@@ -45,7 +44,6 @@ function ScanPage() {
         if (pre.found) {
           setDup(pre.found);
           setPendingFile(file);
-          setPendingBill(null);
           setPendingPhash(phash);
           setPhase("dup");
           return;
@@ -66,7 +64,6 @@ function ScanPage() {
       if (post.found) {
         setDup(post.found);
         setPendingFile(file);
-        setPendingBill(bill);
         setPendingPhash(phash);
         setPhase("dup");
         return;
