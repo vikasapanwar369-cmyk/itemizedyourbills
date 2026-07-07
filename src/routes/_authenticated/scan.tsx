@@ -191,7 +191,6 @@ function ScanPage() {
   function onCancelDup() {
     setDup(null);
     setPendingFile(null);
-    setPendingBill(null);
     setPendingPhash("");
     setPreview(null);
     setPhase("idle");
