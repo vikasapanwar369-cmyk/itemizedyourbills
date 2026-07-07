@@ -75,7 +75,7 @@ export const getRecurringBills = createServerFn({ method: "GET" })
       if (!detected && !stored) continue;
 
       const last = sorted[sorted.length - 1];
-      const cadenceDays = stored?.cadence_days ?? Math.round(avgGap) || 30;
+      const cadenceDays = stored?.cadence_days ?? (Math.round(avgGap) || 30);
       const nextTs = last ? +new Date(last.bill_date) + cadenceDays * DAY : null;
       const nextDueDate = stored?.next_due_date ?? (nextTs ? new Date(nextTs).toISOString() : null);
       const daysUntilDue = nextDueDate ? Math.round((+new Date(nextDueDate) - Date.now()) / DAY) : null;
