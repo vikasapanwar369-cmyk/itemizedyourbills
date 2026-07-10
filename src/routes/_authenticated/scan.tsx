@@ -164,6 +164,17 @@ function ScanPage() {
   async function onConfirmDraft() {
     if (!pendingFile || !draft) return;
     try {
+      // Require a valid bill date — items must be categorised by the bill's date,
+      // not the scan date. If the AI couldn't read it, ask the user to fill it in.
+      const parsedDate = draft.date ? new Date(draft.date) : null;
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        toast.error("Please enter the bill date (YYYY-MM-DD) before saving.");
+        return;
+      }
+      if (parsedDate.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+        toast.error("Bill date can't be in the future. Please correct it.");
+        return;
+      }
       const contentHash = await computeContentHash({
         store: draft.store,
         date: draft.date ?? new Date().toISOString(),
