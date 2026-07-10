@@ -281,7 +281,14 @@ function ScanPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Store" value={draft.store} onChange={(v) => setDraft({ ...draft, store: v })} />
-              <Field label="Date" value={draft.date ?? ""} onChange={(v) => setDraft({ ...draft, date: v })} placeholder="YYYY-MM-DD" />
+              <Field
+                label="Bill date"
+                value={draft.date ?? ""}
+                onChange={(v) => setDraft({ ...draft, date: v })}
+                placeholder="YYYY-MM-DD"
+                invalid={!draft.date || isNaN(new Date(draft.date).getTime())}
+                hint="Used to categorise this bill by month"
+              />
               <Field label="Bill #" value={draft.bill_number ?? ""} onChange={(v) => setDraft({ ...draft, bill_number: v || null })} />
               <Field label="Payment" value={draft.payment_mode} onChange={(v) => setDraft({ ...draft, payment_mode: v })} />
             </div>
@@ -356,16 +363,19 @@ function ScanPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, invalid, hint }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; invalid?: boolean; hint?: string }) {
   return (
     <label className="block text-xs">
-      <span className="text-muted-foreground">{label}</span>
+      <span className={invalid ? "text-amber-300" : "text-muted-foreground"}>
+        {label}{invalid ? " • required" : ""}
+      </span>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
+        className={`mt-1 w-full bg-white/5 border rounded-xl px-3 py-2 text-sm focus:outline-none ${invalid ? "border-amber-400/60 focus:border-amber-300" : "border-white/10 focus:border-violet-400"}`}
       />
+      {hint && <span className="mt-1 block text-[10px] text-muted-foreground">{hint}</span>}
     </label>
   );
 }
