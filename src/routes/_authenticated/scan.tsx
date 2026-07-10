@@ -93,13 +93,18 @@ function ScanPage() {
       const { error: upErr } = await supabase.storage.from("bill-images").upload(path, file, { upsert: false });
       if (!upErr) imageUrl = path;
 
-      const billDate = bill.date ? new Date(bill.date) : new Date();
+      // Bill date drives the month/category bucketing everywhere in the app
+      // (history, budgets, insights). It must be the date printed on the bill,
+      // never the moment the user snaps it. onConfirmDraft has already validated
+      // this, so we trust bill.date here.
+      const billDate = new Date(bill.date as string);
+      const billDateIso = billDate.toISOString();
       const computedTotal = bill.items.reduce((s, it) => s + Number(it.price || 0), 0) || bill.total;
 
       const { data: inserted, error } = await supabase.from("bills").insert({
         user_id: uid,
         store: bill.store || "Unknown",
-        bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
+        bill_date: billDateIso,
         bill_time: bill.time ?? null,
         bill_number: bill.bill_number ?? null,
         merchant_address: bill.merchant_address ?? null,
@@ -149,7 +154,7 @@ function ScanPage() {
         subcategory_id: it.subcategory_id,
         category_confidence: it.confidence,
         categorized_by: "ai",
-        bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
+        bill_date: billDateIso,
       }));
       const { error: itemsErr } = await supabase.from("items").insert(itemsPayload);
       if (itemsErr) throw itemsErr;
