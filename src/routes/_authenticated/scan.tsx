@@ -93,13 +93,18 @@ function ScanPage() {
       const { error: upErr } = await supabase.storage.from("bill-images").upload(path, file, { upsert: false });
       if (!upErr) imageUrl = path;
 
-      const billDate = bill.date ? new Date(bill.date) : new Date();
+      // Bill date drives the month/category bucketing everywhere in the app
+      // (history, budgets, insights). It must be the date printed on the bill,
+      // never the moment the user snaps it. onConfirmDraft has already validated
+      // this, so we trust bill.date here.
+      const billDate = new Date(bill.date as string);
+      const billDateIso = billDate.toISOString();
       const computedTotal = bill.items.reduce((s, it) => s + Number(it.price || 0), 0) || bill.total;
 
       const { data: inserted, error } = await supabase.from("bills").insert({
         user_id: uid,
         store: bill.store || "Unknown",
-        bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
+        bill_date: billDateIso,
         bill_time: bill.time ?? null,
         bill_number: bill.bill_number ?? null,
         merchant_address: bill.merchant_address ?? null,
@@ -149,7 +154,7 @@ function ScanPage() {
         subcategory_id: it.subcategory_id,
         category_confidence: it.confidence,
         categorized_by: "ai",
-        bill_date: isNaN(billDate.getTime()) ? new Date().toISOString() : billDate.toISOString(),
+        bill_date: billDateIso,
       }));
       const { error: itemsErr } = await supabase.from("items").insert(itemsPayload);
       if (itemsErr) throw itemsErr;
@@ -164,6 +169,17 @@ function ScanPage() {
   async function onConfirmDraft() {
     if (!pendingFile || !draft) return;
     try {
+      // Require a valid bill date — items must be categorised by the bill's date,
+      // not the scan date. If the AI couldn't read it, ask the user to fill it in.
+      const parsedDate = draft.date ? new Date(draft.date) : null;
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        toast.error("Please enter the bill date (YYYY-MM-DD) before saving.");
+        return;
+      }
+      if (parsedDate.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+        toast.error("Bill date can't be in the future. Please correct it.");
+        return;
+      }
       const contentHash = await computeContentHash({
         store: draft.store,
         date: draft.date ?? new Date().toISOString(),
@@ -265,7 +281,14 @@ function ScanPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Store" value={draft.store} onChange={(v) => setDraft({ ...draft, store: v })} />
-              <Field label="Date" value={draft.date ?? ""} onChange={(v) => setDraft({ ...draft, date: v })} placeholder="YYYY-MM-DD" />
+              <Field
+                label="Bill date"
+                value={draft.date ?? ""}
+                onChange={(v) => setDraft({ ...draft, date: v })}
+                placeholder="YYYY-MM-DD"
+                invalid={!draft.date || isNaN(new Date(draft.date).getTime())}
+                hint="Used to categorise this bill by month"
+              />
               <Field label="Bill #" value={draft.bill_number ?? ""} onChange={(v) => setDraft({ ...draft, bill_number: v || null })} />
               <Field label="Payment" value={draft.payment_mode} onChange={(v) => setDraft({ ...draft, payment_mode: v })} />
             </div>
@@ -340,16 +363,19 @@ function ScanPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, invalid, hint }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; invalid?: boolean; hint?: string }) {
   return (
     <label className="block text-xs">
-      <span className="text-muted-foreground">{label}</span>
+      <span className={invalid ? "text-amber-300" : "text-muted-foreground"}>
+        {label}{invalid ? " • required" : ""}
+      </span>
       <input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
+        className={`mt-1 w-full bg-white/5 border rounded-xl px-3 py-2 text-sm focus:outline-none ${invalid ? "border-amber-400/60 focus:border-amber-300" : "border-white/10 focus:border-violet-400"}`}
       />
+      {hint && <span className="mt-1 block text-[10px] text-muted-foreground">{hint}</span>}
     </label>
   );
 }
