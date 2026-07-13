@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { scanBill, checkDuplicateBill, type ScannedBill } from "@/lib/bills.functions";
+import { reconcileShoppingFromBill } from "@/lib/shopping.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { computeImagePhash, computeContentHash } from "@/lib/imageHash";
 import { shortDate, money } from "@/lib/format";
@@ -27,6 +28,7 @@ function ScanPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const runScan = useServerFn(scanBill);
   const runDupCheck = useServerFn(checkDuplicateBill);
+  const runReconcile = useServerFn(reconcileShoppingFromBill);
 
   const [dup, setDup] = useState<DupBill | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -158,6 +160,34 @@ function ScanPage() {
       }));
       const { error: itemsErr } = await supabase.from("items").insert(itemsPayload);
       if (itemsErr) throw itemsErr;
+
+      // Auto-check shopping list items that were on this bill; flag any
+      // items expected at the same store but not purchased.
+      try {
+        const rec = await runReconcile({
+          data: {
+            store: bill.store || "",
+            items: bill.items.map((it) => ({
+              name: it.name,
+              canonical_name: it.canonical_name ?? null,
+              brand: it.brand ?? null,
+            })),
+          },
+        });
+        if (rec.checked.length > 0) {
+          toast.success(
+            `Checked off ${rec.checked.length} from your list: ${rec.checked.slice(0, 3).join(", ")}${rec.checked.length > 3 ? "…" : ""}`
+          );
+        }
+        if (rec.forgotten.length > 0) {
+          toast.warning(
+            `Forgot ${rec.forgotten.length} at ${bill.store}: ${rec.forgotten.slice(0, 3).join(", ")}${rec.forgotten.length > 3 ? "…" : ""}`,
+            { duration: 6000 }
+          );
+        }
+      } catch {
+        // Non-fatal — the bill itself already saved.
+      }
 
       setPhase("done");
       setProgress(`Saved! ${bill.items.length} items added to your ${prettyCat(bill.category)} list`);
