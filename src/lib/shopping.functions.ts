@@ -75,6 +75,79 @@ export const clearCheckedShopping = createServerFn({ method: "POST" })
   });
 
 /**
+ * After a bill is saved, auto-check any shopping list items that match the
+ * purchased items, and flag any unchecked items that were expected at that
+ * store but not bought (potential "forgotten" items).
+ */
+export const reconcileShoppingFromBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: {
+    store: string;
+    items: Array<{ name: string; canonical_name?: string | null; brand?: string | null }>;
+  }) => data)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: list, error } = await supabase
+      .from("shopping_list_items")
+      .select("id, name, brand, last_store")
+      .eq("user_id", userId)
+      .eq("checked", false);
+    if (error) throw new Error(error.message);
+
+    const pending = list ?? [];
+    if (pending.length === 0) return { checked: [], forgotten: [] };
+
+    const purchasedKeys = new Set<string>();
+    const purchasedNames = new Set<string>();
+    for (const it of data.items) {
+      const canon = norm(it.canonical_name ?? "");
+      const n = norm(it.name);
+      const b = norm(it.brand ?? "");
+      if (canon) purchasedNames.add(canon);
+      if (n) purchasedNames.add(n);
+      if (n) purchasedKeys.add(`${n}|${b}`);
+    }
+
+    const matchesPurchase = (name: string, brand: string) => {
+      const n = norm(name);
+      const b = norm(brand);
+      if (purchasedKeys.has(`${n}|${b}`)) return true;
+      if (purchasedNames.has(n)) return true;
+      // token overlap fallback: at least one shared word ≥3 chars
+      const tokens = n.split(" ").filter((t) => t.length >= 3);
+      for (const p of purchasedNames) {
+        for (const t of tokens) if (p.includes(t)) return true;
+      }
+      return false;
+    };
+
+    const toCheck: string[] = [];
+    const checkedNames: string[] = [];
+    const forgotten: string[] = [];
+    const storeNorm = norm(data.store);
+
+    for (const row of pending) {
+      if (matchesPurchase(row.name, row.brand ?? "")) {
+        toCheck.push(row.id);
+        checkedNames.push(row.name);
+      } else if (storeNorm && norm(row.last_store ?? "") === storeNorm) {
+        forgotten.push(row.name);
+      }
+    }
+
+    if (toCheck.length > 0) {
+      const { error: upErr } = await supabase
+        .from("shopping_list_items")
+        .update({ checked: true })
+        .in("id", toCheck)
+        .eq("user_id", userId);
+      if (upErr) throw new Error(upErr.message);
+    }
+
+    return { checked: checkedNames, forgotten };
+  });
+
+/**
  * Scan items history, find refill candidates (Refill Soon / Overdue), and add
  * anything not already on the list.
  */
