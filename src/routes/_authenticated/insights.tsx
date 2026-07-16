@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, Package, PiggyBank, Repeat, ShoppingCart, Store, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, ChevronRight, Clock, LineChart, Package, PiggyBank, Repeat, ShoppingCart, Store, TrendingDown, TrendingUp } from "lucide-react";
 import { getInsights } from "@/lib/insights.functions";
 import { money, shortDate } from "@/lib/format";
 import { ItemDetailSheet } from "@/components/ItemDetailSheet";
@@ -40,6 +40,19 @@ function InsightsPage() {
 
       {!isLoading && data && (
         <>
+          <Link to={"/inflation" as "/home"} className="block">
+            <div className="glass-strong p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                <LineChart className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">Your inflation dashboard</p>
+                <p className="text-[11px] text-muted-foreground">See how prices moved by category and item</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </Link>
+
           {data.totalItemsTracked === 0 && (
             <div className="glass p-6 text-center text-sm text-muted-foreground">
               Scan at least 2 bills with overlapping items to unlock repeat-purchase insights.

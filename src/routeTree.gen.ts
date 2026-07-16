@@ -19,7 +19,6 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated/recurring'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedInflationRouteImport } from './routes/_authenticated/inflation'
-import { Route as AuthenticatedInflationRouteImport } from './routes/_authenticated/inflation'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedConsumptionRouteImport } from './routes/_authenticated/consumption'
@@ -76,11 +75,6 @@ const AuthenticatedInflationRoute = AuthenticatedInflationRouteImport.update({
   path: '/inflation',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedInflationRoute = AuthenticatedInflationRouteImport.update({
-  id: '/inflation',
-  path: '/inflation',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -123,7 +117,6 @@ export interface FileRoutesByFullPath {
   '/home': typeof AuthenticatedHomeRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
-  '/inflation': typeof AuthenticatedInflationRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -141,7 +134,6 @@ export interface FileRoutesByTo {
   '/home': typeof AuthenticatedHomeRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
-  '/inflation': typeof AuthenticatedInflationRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -161,7 +153,6 @@ export interface FileRoutesById {
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/inflation': typeof AuthenticatedInflationRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
-  '/_authenticated/inflation': typeof AuthenticatedInflationRoute
   '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
@@ -181,7 +172,6 @@ export interface FileRouteTypes {
     | '/home'
     | '/inflation'
     | '/insights'
-    | '/inflation'
     | '/recurring'
     | '/reports'
     | '/scan'
@@ -199,7 +189,6 @@ export interface FileRouteTypes {
     | '/home'
     | '/inflation'
     | '/insights'
-    | '/inflation'
     | '/recurring'
     | '/reports'
     | '/scan'
@@ -218,7 +207,6 @@ export interface FileRouteTypes {
     | '/_authenticated/home'
     | '/_authenticated/inflation'
     | '/_authenticated/insights'
-    | '/_authenticated/inflation'
     | '/_authenticated/recurring'
     | '/_authenticated/reports'
     | '/_authenticated/scan'
@@ -306,13 +294,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInflationRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/inflation': {
-      id: '/_authenticated/inflation'
-      path: '/inflation'
-      fullPath: '/inflation'
-      preLoaderRoute: typeof AuthenticatedInflationRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/home': {
       id: '/_authenticated/home'
       path: '/home'
@@ -365,7 +346,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedInflationRoute: typeof AuthenticatedInflationRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
-  AuthenticatedInflationRoute: typeof AuthenticatedInflationRoute
   AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
@@ -382,7 +362,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedInflationRoute: AuthenticatedInflationRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
-  AuthenticatedInflationRoute: AuthenticatedInflationRoute,
   AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
