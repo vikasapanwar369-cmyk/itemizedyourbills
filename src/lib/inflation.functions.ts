@@ -29,7 +29,12 @@ type ItemRow = {
 
 export const getInflation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { category?: string; sub?: string; brand?: string } | null) => ({
+    category: input?.category && input.category !== "all" ? input.category : "",
+    sub: input?.sub && input.sub !== "all" ? input.sub : "",
+    brand: input?.brand && input.brand !== "all" ? input.brand : "",
+  }))
+  .handler(async ({ context, data: filters }) => {
     const { userId, supabase } = context;
     const [itemsR, billsR] = await Promise.all([
       supabase
@@ -42,7 +47,7 @@ export const getInflation = createServerFn({ method: "GET" })
     if (itemsR.error) throw new Error(itemsR.error.message);
     if (billsR.error) throw new Error(billsR.error.message);
 
-    const items = (itemsR.data ?? []) as ItemRow[];
+    const allItems = (itemsR.data ?? []) as ItemRow[];
     const billCurrency = new Map((billsR.data ?? []).map((b) => [b.id, b.currency ?? "INR"]));
 
     const cm = new Map<string, number>();
@@ -57,6 +62,39 @@ export const getInflation = createServerFn({ method: "GET" })
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
     const monthSet = new Set(months);
+
+    // ---- Facets (built from all items, so options never disappear) ----
+    const catSet = new Set<string>();
+    const subsByCat = new Map<string, Set<string>>();
+    const brandsByKey = new Map<string, Set<string>>();
+    for (const it of allItems) {
+      const cat = it.category || "other";
+      const sub = (it.sub || "").trim();
+      const brand = (it.brand || "").trim();
+      catSet.add(cat);
+      if (sub) {
+        if (!subsByCat.has(cat)) subsByCat.set(cat, new Set());
+        subsByCat.get(cat)!.add(sub);
+      }
+      if (brand) {
+        for (const k of [`c:${cat}`, `s:${cat}|${sub}`, "*"]) {
+          if (!brandsByKey.has(k)) brandsByKey.set(k, new Set());
+          brandsByKey.get(k)!.add(brand);
+        }
+      }
+    }
+    const facets = {
+      categories: [...catSet].sort(),
+      subcategories: [...subsByCat.entries()].map(([category, s]) => ({ category, subs: [...s].sort() })),
+      brands: [...brandsByKey.entries()].map(([key, s]) => ({ key, brands: [...s].sort() })),
+    };
+
+    const items = allItems.filter((it) => {
+      if (filters.category && (it.category || "other") !== filters.category) return false;
+      if (filters.sub && (it.sub || "").trim() !== filters.sub) return false;
+      if (filters.brand && (it.brand || "").trim() !== filters.brand) return false;
+      return true;
+    });
 
     // ---- Category monthly weighted-avg unit price ----
     // key: category -> month -> { sumPriceQty, sumQty, spent }
@@ -227,6 +265,8 @@ export const getInflation = createServerFn({ method: "GET" })
       fallers,
       totalItems: items.length,
       trackedItems: itemSeries.length,
+      facets,
+      applied: filters,
     };
   });
 
