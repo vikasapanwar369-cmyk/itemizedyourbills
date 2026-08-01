@@ -3,7 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Flame, Snowflake, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Flame, Snowflake, ArrowUpRight, ArrowDownRight, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -23,9 +29,12 @@ function InflationPage() {
   const [category, setCategory] = useState("all");
   const [sub, setSub] = useState("all");
   const [brand, setBrand] = useState("all");
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const fromISO = range?.from ? format(range.from, "yyyy-MM-dd") : "";
+  const toISO = range?.to ? format(range.to, "yyyy-MM-dd") : "";
   const { data, isLoading } = useQuery({
-    queryKey: ["inflation", category, sub, brand],
-    queryFn: () => fetchInflation({ data: { category, sub, brand } }),
+    queryKey: ["inflation", category, sub, brand, fromISO, toISO],
+    queryFn: () => fetchInflation({ data: { category, sub, brand, from: fromISO, to: toISO } }),
     placeholderData: (prev) => prev,
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
@@ -50,7 +59,13 @@ function InflationPage() {
     return data.facets.brands.find((b) => b.key === key)?.brands ?? [];
   }, [data, category, sub]);
 
-  const hasFilters = category !== "all" || sub !== "all" || brand !== "all";
+  const hasFilters = category !== "all" || sub !== "all" || brand !== "all" || !!fromISO || !!toISO;
+
+  const applyPreset = (months: number) => {
+    const to = new Date();
+    const from = new Date(to.getFullYear(), to.getMonth() - (months - 1), 1);
+    setRange({ from, to });
+  };
 
   return (
     <div className="px-5 pt-8 pb-32 space-y-6">
@@ -69,13 +84,73 @@ function InflationPage() {
             {hasFilters && (
               <button
                 type="button"
-                onClick={() => { setCategory("all"); setSub("all"); setBrand("all"); }}
+                onClick={() => { setCategory("all"); setSub("all"); setBrand("all"); setRange(undefined); }}
                 className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
               >
                 <X className="h-3 w-3" /> Clear
               </button>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal bg-white/5 border-white/10 text-xs h-9",
+                    !range?.from && "text-muted-foreground",
+                  )}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {range?.from
+                    ? range.to
+                      ? `${format(range.from, "d MMM yyyy")} — ${format(range.to, "d MMM yyyy")}`
+                      : `${format(range.from, "d MMM yyyy")} — pick end date`
+                    : "Last 12 months (tap to pick a range)"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  numberOfMonths={1}
+                  defaultMonth={range?.from}
+                  selected={range}
+                  onSelect={setRange}
+                  disabled={{ after: new Date() }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "3M", months: 3 },
+                { label: "6M", months: 6 },
+                { label: "12M", months: 12 },
+                { label: "24M", months: 24 },
+              ].map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => applyPreset(p.months)}
+                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-muted-foreground active:scale-95 transition"
+                >
+                  {p.label}
+                </button>
+              ))}
+              {(fromISO || toISO) && (
+                <button
+                  type="button"
+                  onClick={() => setRange(undefined)}
+                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-muted-foreground"
+                >
+                  Reset dates
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             <FilterSelect
               label="Category"
@@ -96,6 +171,11 @@ function InflationPage() {
               options={brandOptions.map((b) => ({ value: b, label: b }))}
             />
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            {data.period.monthCount} month{data.period.monthCount === 1 ? "" : "s"} ·{" "}
+            {format(new Date(`${data.period.from}T00:00:00`), "d MMM yyyy")} –{" "}
+            {format(new Date(`${data.period.to}T00:00:00`), "d MMM yyyy")}
+          </p>
         </section>
       )}
 
@@ -115,7 +195,9 @@ function InflationPage() {
           <section className="glass-strong p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Basket price index · last 12 months</p>
+          <p className="text-xs text-muted-foreground">
+            Basket price index · {data.period.isCustom ? "custom period" : "last 12 months"}
+          </p>
                 <p className="mt-1 text-3xl font-bold tabular">
                   {data.overall.changePct > 0 ? "+" : ""}
                   {data.overall.changePct.toFixed(1)}%
