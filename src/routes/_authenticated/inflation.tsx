@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Flame, Snowflake, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Flame, Snowflake, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -20,9 +20,13 @@ export const Route = createFileRoute("/_authenticated/inflation")({
 
 function InflationPage() {
   const fetchInflation = useServerFn(getInflation);
+  const [category, setCategory] = useState("all");
+  const [sub, setSub] = useState("all");
+  const [brand, setBrand] = useState("all");
   const { data, isLoading } = useQuery({
-    queryKey: ["inflation"],
-    queryFn: () => fetchInflation(),
+    queryKey: ["inflation", category, sub, brand],
+    queryFn: () => fetchInflation({ data: { category, sub, brand } }),
+    placeholderData: (prev) => prev,
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [tab, setTab] = useState<"risers" | "fallers">("risers");
@@ -31,6 +35,22 @@ function InflationPage() {
     if (!data) return [];
     return data.overall.series.map((s) => ({ label: s.label, value: s.avgUnitPrice ?? null }));
   }, [data]);
+
+  const subOptions = useMemo(() => {
+    if (!data) return [];
+    if (category === "all") {
+      return [...new Set(data.facets.subcategories.flatMap((s) => s.subs))].sort();
+    }
+    return data.facets.subcategories.find((s) => s.category === category)?.subs ?? [];
+  }, [data, category]);
+
+  const brandOptions = useMemo(() => {
+    if (!data) return [];
+    const key = category === "all" ? "*" : sub === "all" ? `c:${category}` : `s:${category}|${sub}`;
+    return data.facets.brands.find((b) => b.key === key)?.brands ?? [];
+  }, [data, category, sub]);
+
+  const hasFilters = category !== "all" || sub !== "all" || brand !== "all";
 
   return (
     <div className="px-5 pt-8 pb-32 space-y-6">
@@ -42,11 +62,50 @@ function InflationPage() {
         </p>
       </div>
 
+      {data && (
+        <section className="glass p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">Focus trends</p>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => { setCategory("all"); setSub("all"); setBrand("all"); }}
+                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <FilterSelect
+              label="Category"
+              value={category}
+              onChange={(v) => { setCategory(v); setSub("all"); setBrand("all"); }}
+              options={data.facets.categories.map((c) => ({ value: c, label: getCategory(c).label }))}
+            />
+            <FilterSelect
+              label="Subcategory"
+              value={sub}
+              onChange={(v) => { setSub(v); setBrand("all"); }}
+              options={subOptions.map((s) => ({ value: s, label: s }))}
+            />
+            <FilterSelect
+              label="Brand"
+              value={brand}
+              onChange={setBrand}
+              options={brandOptions.map((b) => ({ value: b, label: b }))}
+            />
+          </div>
+        </section>
+      )}
+
       {isLoading && <SkeletonBlock />}
 
       {!isLoading && data && data.trackedItems === 0 && (
         <div className="glass p-6 text-center text-sm text-muted-foreground">
-          Scan at least a couple of months of bills to see how your prices move.
+          {hasFilters
+            ? "No price trends match these filters yet — try widening them."
+            : "Scan at least a couple of months of bills to see how your prices move."}
         </div>
       )}
 
@@ -266,6 +325,43 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 }
 
 function SkeletonBlock() {
+  return (
+    <div className="space-y-3">
+      <div className="glass h-40 animate-pulse" />
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="glass h-24 animate-pulse" />
+      ))}
+    </div>
+  );
+}
+
+function FilterSelect({
+  label, value, onChange, options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-[10px] text-muted-foreground mb-1">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={options.length === 0}
+        className="w-full rounded-lg bg-white/5 border border-white/10 px-2 py-2 text-xs text-foreground disabled:opacity-40"
+      >
+        <option value="all">All</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function UnusedSkeleton() {
   return (
     <div className="space-y-3">
       <div className="glass h-40 animate-pulse" />
