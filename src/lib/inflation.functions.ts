@@ -292,6 +292,13 @@ export const getInflation = createServerFn({ method: "GET" })
       trackedItems: itemSeries.length,
       facets,
       applied: filters,
+      period: {
+        from: start.toISOString().slice(0, 10),
+        to: end.toISOString().slice(0, 10),
+        isCustom: Boolean(filters.from || filters.to),
+        monthCount: months.length,
+      },
+      earliestDataDate: allItems[0]?.bill_date ? String(allItems[0].bill_date).slice(0, 10) : null,
     };
   });
 
