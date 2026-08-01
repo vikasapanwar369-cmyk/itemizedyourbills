@@ -360,14 +360,3 @@ function FilterSelect({
     </label>
   );
 }
-
-function UnusedSkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="glass h-40 animate-pulse" />
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="glass h-24 animate-pulse" />
-      ))}
-    </div>
-  );
-}
