@@ -29,11 +29,18 @@ type ItemRow = {
 
 export const getInflation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input?: { category?: string; sub?: string; brand?: string } | null) => ({
-    category: input?.category && input.category !== "all" ? input.category : "",
-    sub: input?.sub && input.sub !== "all" ? input.sub : "",
-    brand: input?.brand && input.brand !== "all" ? input.brand : "",
-  }))
+  .inputValidator(
+    (input?: { category?: string; sub?: string; brand?: string; from?: string; to?: string } | null) => {
+      const isDate = (s?: string) => !!s && !Number.isNaN(new Date(s).getTime());
+      return {
+        category: input?.category && input.category !== "all" ? input.category : "",
+        sub: input?.sub && input.sub !== "all" ? input.sub : "",
+        brand: input?.brand && input.brand !== "all" ? input.brand : "",
+        from: isDate(input?.from) ? input!.from!.slice(0, 10) : "",
+        to: isDate(input?.to) ? input!.to!.slice(0, 10) : "",
+      };
+    },
+  )
   .handler(async ({ context, data: filters }) => {
     const { userId, supabase } = context;
     const [itemsR, billsR] = await Promise.all([
@@ -54,12 +61,28 @@ export const getInflation = createServerFn({ method: "GET" })
     for (const [, c] of billCurrency) cm.set(c, (cm.get(c) ?? 0) + 1);
     const currency = [...cm.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
 
-    // Build set of months covered (last 12)
+    // ---- Period: custom range if provided, else last 12 months ----
     const now = new Date();
+    let start: Date;
+    let end: Date;
+    if (filters.from || filters.to) {
+      start = filters.from ? new Date(`${filters.from}T00:00:00`) : new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      end = filters.to ? new Date(`${filters.to}T23:59:59.999`) : now;
+      if (start > end) [start, end] = [end, start];
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      end = now;
+    }
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+
     const months: string[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    // hard cap to keep charts readable
+    while (cursor <= lastMonth && months.length < 60) {
+      months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`);
+      cursor.setMonth(cursor.getMonth() + 1);
     }
     const monthSet = new Set(months);
 
@@ -90,6 +113,8 @@ export const getInflation = createServerFn({ method: "GET" })
     };
 
     const items = allItems.filter((it) => {
+      const t = new Date(it.bill_date).getTime();
+      if (Number.isNaN(t) || t < startMs || t > endMs) return false;
       if (filters.category && (it.category || "other") !== filters.category) return false;
       if (filters.sub && (it.sub || "").trim() !== filters.sub) return false;
       if (filters.brand && (it.brand || "").trim() !== filters.brand) return false;
