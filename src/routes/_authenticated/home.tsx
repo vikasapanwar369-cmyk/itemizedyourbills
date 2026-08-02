@@ -24,7 +24,7 @@ function HomePage() {
   const { data: shoppingItems } = useQuery({ queryKey: ["shopping"], queryFn: () => fetchShopping() });
   const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchInsights() });
 
-  const { data, isPending } = useQuery({
+  const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
       const now = new Date();
