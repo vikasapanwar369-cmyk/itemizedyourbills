@@ -12,14 +12,28 @@ function AuthLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) navigate({ to: "/login", replace: true });
-      else setReady(true);
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data.session?.user) navigate({ to: "/login", replace: true });
+        else setReady(true);
+      })
+      .catch(() => {
+        // Network hiccup: keep the screen rather than blanking it out.
+        if (active) setReady(true);
+      });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Only a real sign-out should send the user to /login. TOKEN_REFRESHED /
+      // INITIAL_SESSION events previously redirected and blanked the screen.
+      if (event === "SIGNED_OUT") navigate({ to: "/login", replace: true });
+      else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") setReady(true);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (!s?.user) navigate({ to: "/login", replace: true });
-    });
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   if (!ready) {
