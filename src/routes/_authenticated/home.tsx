@@ -31,27 +31,32 @@ function HomePage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const [{ data: thisItems }, { data: lastItems }, { data: thisBills }, { data: recent }, { data: todayItems }, { data: allItemNames }, { data: allStores }] = await Promise.all([
-        supabase.from("items").select("price, bill_date, category").gte("bill_date", monthStart),
-        supabase.from("items").select("price").gte("bill_date", lastMonthStart).lt("bill_date", monthStart),
+      // One window covering last month + this month, split client-side, plus
+      // one all-time name/store pass. 4 round-trips instead of 7.
+      const [{ data: windowItems }, { data: thisBills }, { data: recent }, { data: allItems }, { data: allStores }] = await Promise.all([
+        supabase.from("items").select("price, bill_date, category").gte("bill_date", lastMonthStart),
         supabase.from("bills").select("id, currency, store").gte("bill_date", monthStart),
         supabase.from("bills").select("id, store, bill_date, category, total, currency").order("bill_date", { ascending: false }).limit(5),
-        supabase.from("items").select("price").gte("bill_date", todayStart),
         supabase.from("items").select("canonical_name, name"),
         supabase.from("bills").select("store"),
       ]);
-      const thisTotal = (thisItems ?? []).reduce((s, it) => s + Number(it.price), 0);
-      const lastTotal = (lastItems ?? []).reduce((s, it) => s + Number(it.price), 0);
-      const todayTotal = (todayItems ?? []).reduce((s, it) => s + Number(it.price), 0);
+      const rows = windowItems ?? [];
+      const thisItems = rows.filter((it) => (it.bill_date ?? "") >= monthStart);
+      const lastItems = rows.filter((it) => (it.bill_date ?? "") < monthStart);
+      const thisTotal = thisItems.reduce((s, it) => s + Number(it.price), 0);
+      const lastTotal = lastItems.reduce((s, it) => s + Number(it.price), 0);
+      const todayTotal = thisItems
+        .filter((it) => (it.bill_date ?? "") >= todayStart)
+        .reduce((s, it) => s + Number(it.price), 0);
       const cc = new Map<string, number>();
       for (const b of [...(thisBills ?? []), ...(recent ?? [])]) cc.set(b.currency ?? "INR", (cc.get(b.currency ?? "INR") ?? 0) + 1);
       const currency = [...cc.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "INR";
       // top category this month
       const catMap = new Map<string, number>();
-      for (const it of thisItems ?? []) catMap.set(it.category, (catMap.get(it.category) ?? 0) + Number(it.price));
+      for (const it of thisItems) catMap.set(it.category, (catMap.get(it.category) ?? 0) + Number(it.price));
       const topCat = [...catMap.entries()].sort((a, b) => b[1] - a[1])[0];
       // unique items + unique stores all-time
-      const uniqueItems = new Set((allItemNames ?? []).map((i) => (i.canonical_name || i.name).toLowerCase())).size;
+      const uniqueItems = new Set((allItems ?? []).map((i) => (i.canonical_name || i.name).toLowerCase())).size;
       const uniqueStores = new Set((allStores ?? []).map((b) => (b.store || "").toLowerCase()).filter(Boolean)).size;
       return {
         thisTotal, lastTotal, todayTotal,
