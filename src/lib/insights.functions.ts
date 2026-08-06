@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { visibleUserIds } from "@/lib/household.server";
 
 type ItemRow = {
   name: string;
@@ -103,13 +104,14 @@ export const getItemDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context;
+    const ids = await visibleUserIds(supabase, userId);
     const [itemsR, billsR] = await Promise.all([
       supabase
         .from("items")
         .select("id, name, canonical_name, brand, company, qty, unit, unit_weight_or_volume, unit_price, price, mrp, gst_percent, sub, category, bill_date, bill_id")
-        .eq("user_id", userId)
+        .in("user_id", ids)
         .order("bill_date", { ascending: false }),
-      supabase.from("bills").select("id, store, currency, image_url, payment_mode").eq("user_id", userId),
+      supabase.from("bills").select("id, store, currency, image_url, payment_mode").in("user_id", ids),
     ]);
     if (itemsR.error) throw new Error(itemsR.error.message);
     if (billsR.error) throw new Error(billsR.error.message);
@@ -225,13 +227,14 @@ export const getInsights = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, supabase } = context;
+    const ids = await visibleUserIds(supabase, userId);
     const [itemsR, billsR] = await Promise.all([
       supabase
         .from("items")
         .select("name, canonical_name, brand, qty, unit, unit_price, price, sub, category, bill_date, bill_id")
-        .eq("user_id", userId)
+        .in("user_id", ids)
         .order("bill_date", { ascending: true }),
-      supabase.from("bills").select("id, store, currency, total, bill_date, category").eq("user_id", userId).order("bill_date", { ascending: true }),
+      supabase.from("bills").select("id, store, currency, total, bill_date, category").in("user_id", ids).order("bill_date", { ascending: true }),
     ]);
     if (itemsR.error) throw new Error(itemsR.error.message);
     if (billsR.error) throw new Error(billsR.error.message);
