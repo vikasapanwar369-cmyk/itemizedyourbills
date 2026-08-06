@@ -43,13 +43,14 @@ export const getInflation = createServerFn({ method: "GET" })
   )
   .handler(async ({ context, data: filters }) => {
     const { userId, supabase } = context;
+    const ids = await visibleUserIds(supabase, userId);
     const [itemsR, billsR] = await Promise.all([
       supabase
         .from("items")
         .select("name, canonical_name, brand, qty, unit, unit_price, price, category, sub, bill_date, bill_id")
-        .eq("user_id", userId)
+        .in("user_id", ids)
         .order("bill_date", { ascending: true }),
-      supabase.from("bills").select("id, currency").eq("user_id", userId),
+      supabase.from("bills").select("id, currency").in("user_id", ids),
     ]);
     if (itemsR.error) throw new Error(itemsR.error.message);
     if (billsR.error) throw new Error(billsR.error.message);
