@@ -28,13 +28,14 @@ export const getRecurringBills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, supabase } = context;
+    const ids = await visibleUserIds(supabase, userId);
     const [billsR, savedR] = await Promise.all([
       supabase
         .from("bills")
         .select("id, store, category, total, bill_date, currency")
-        .eq("user_id", userId)
+        .in("user_id", ids)
         .order("bill_date", { ascending: true }),
-      supabase.from("recurring_bills").select("*").eq("user_id", userId),
+      supabase.from("recurring_bills").select("*").in("user_id", ids),
     ]);
     if (billsR.error) throw new Error(billsR.error.message);
     if (savedR.error) throw new Error(savedR.error.message);
