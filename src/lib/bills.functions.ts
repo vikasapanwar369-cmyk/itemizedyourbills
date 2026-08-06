@@ -464,16 +464,17 @@ export const checkDuplicateBill = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ context, data }) => {
-    const { userId } = context;
+    const { userId, supabase } = context;
     const hashes: string[] = [];
     if (data.imagePhash) hashes.push(`image_phash.eq.${data.imagePhash}`);
     if (data.contentHash) hashes.push(`content_hash.eq.${data.contentHash}`);
     if (hashes.length === 0) return { found: null as null | { id: string; store: string; bill_date: string; total: number; currency: string } };
+    const ids = await visibleUserIds(supabase, userId);
 
     const { data: rows, error } = await supabaseAdmin
       .from("bills")
       .select("id, store, bill_date, total, currency")
-      .eq("user_id", userId)
+      .in("user_id", ids)
       .or(hashes.join(","))
       .order("bill_date", { ascending: false })
       .limit(1);
