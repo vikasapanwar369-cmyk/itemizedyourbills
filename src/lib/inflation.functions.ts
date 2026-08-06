@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { visibleUserIds } from "@/lib/household.server";
 
 const norm = (s: string) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
