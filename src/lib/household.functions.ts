@@ -149,7 +149,7 @@ export const updateHousehold = createServerFn({ method: "POST" })
         .from("household_members").update({ display_name: data.displayName }).eq("user_id", userId);
       if (error) throw new Error(error.message);
     }
-    const patch: Record<string, string> = {};
+    const patch: { name?: string; invite_code?: string } = {};
     if (data.name) patch.name = data.name;
     if (data.rotateCode) patch.invite_code = makeCode();
     if (Object.keys(patch).length > 0) {
