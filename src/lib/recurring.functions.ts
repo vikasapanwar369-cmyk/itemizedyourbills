@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { visibleUserIds } from "@/lib/household.server";
 
 const DAY = 86_400_000;
 const keyOf = (store: string, category: string) =>
