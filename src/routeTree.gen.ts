@@ -16,6 +16,7 @@ import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedConsumptionRouteImport } from './routes/_authenticated/consumption'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedHouseholdRouteImport } from './routes/_authenticated/household'
 import { Route as AuthenticatedInflationRouteImport } from './routes/_authenticated/inflation'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated/recurring'
@@ -59,6 +60,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHouseholdRoute = AuthenticatedHouseholdRouteImport.update({
+  id: '/household',
+  path: '/household',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedInflationRoute = AuthenticatedInflationRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/household': typeof AuthenticatedHouseholdRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/recurring': typeof AuthenticatedRecurringRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/household': typeof AuthenticatedHouseholdRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/recurring': typeof AuthenticatedRecurringRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/_authenticated/consumption': typeof AuthenticatedConsumptionRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/household': typeof AuthenticatedHouseholdRoute
   '/_authenticated/inflation': typeof AuthenticatedInflationRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
   '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/consumption'
     | '/history'
     | '/home'
+    | '/household'
     | '/inflation'
     | '/insights'
     | '/recurring'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/consumption'
     | '/history'
     | '/home'
+    | '/household'
     | '/inflation'
     | '/insights'
     | '/recurring'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/_authenticated/consumption'
     | '/_authenticated/history'
     | '/_authenticated/home'
+    | '/_authenticated/household'
     | '/_authenticated/inflation'
     | '/_authenticated/insights'
     | '/_authenticated/recurring'
@@ -271,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/household': {
+      id: '/_authenticated/household'
+      path: '/household'
+      fullPath: '/household'
+      preLoaderRoute: typeof AuthenticatedHouseholdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/inflation': {
@@ -344,6 +363,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedConsumptionRoute: typeof AuthenticatedConsumptionRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedHouseholdRoute: typeof AuthenticatedHouseholdRoute
   AuthenticatedInflationRoute: typeof AuthenticatedInflationRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
   AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
@@ -360,6 +380,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedConsumptionRoute: AuthenticatedConsumptionRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedHouseholdRoute: AuthenticatedHouseholdRoute,
   AuthenticatedInflationRoute: AuthenticatedInflationRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
   AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
@@ -383,13 +404,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

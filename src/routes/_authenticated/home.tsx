@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
@@ -90,9 +90,14 @@ function HomePage() {
           <p className="text-xs text-muted-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}</p>
           <h1 className="text-2xl font-bold mt-0.5">{greet} 👋</h1>
         </div>
-        <Link to={"/search" as "/home"} aria-label="Search" className="glass h-10 w-10 flex items-center justify-center">
-          <Search className="h-4 w-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to={"/household" as "/home"} aria-label="Household" className="glass h-10 w-10 flex items-center justify-center">
+            <Users className="h-4 w-4" />
+          </Link>
+          <Link to={"/search" as "/home"} aria-label="Search" className="glass h-10 w-10 flex items-center justify-center">
+            <Search className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Hero */}
@@ -249,6 +254,19 @@ function HomePage() {
           <div className="flex-1">
             <p className="font-semibold">Smart insights</p>
             <p className="text-xs text-muted-foreground">Repeat items, gap analysis, low-stock & price alerts</p>
+          </div>
+        </div>
+      </Link>
+
+      {/* Household CTA */}
+      <Link to={"/household" as "/home"} className="block">
+        <div className="glass flex items-center gap-4 p-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center">
+            <Users className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold">Household sharing</p>
+            <p className="text-xs text-muted-foreground">Invite family and track spending together</p>
           </div>
         </div>
       </Link>
