@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { visibleUserIds } from "@/lib/household.server";
 
 export const getBudgetsWithProgress = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -7,11 +8,12 @@ export const getBudgetsWithProgress = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const ids = await visibleUserIds(supabase, userId);
 
     const [budgetsR, itemsR, billsR] = await Promise.all([
-      supabase.from("budgets").select("id, category, monthly_limit, currency").eq("user_id", userId),
-      supabase.from("items").select("category, price").eq("user_id", userId).gte("bill_date", monthStart),
-      supabase.from("bills").select("currency").eq("user_id", userId).gte("bill_date", monthStart),
+      supabase.from("budgets").select("id, category, monthly_limit, currency").in("user_id", ids),
+      supabase.from("items").select("category, price").in("user_id", ids).gte("bill_date", monthStart),
+      supabase.from("bills").select("currency").in("user_id", ids).gte("bill_date", monthStart),
     ]);
     if (budgetsR.error) throw new Error(budgetsR.error.message);
 
