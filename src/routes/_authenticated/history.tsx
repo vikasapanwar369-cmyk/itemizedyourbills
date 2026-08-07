@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Download, Trash2, LogOut } from "lucide-react";
+import { Search, Download, Trash2, LogOut, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { EmptyState } from "@/components/EmptyState";
 import { money, fullDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/history")({
@@ -94,7 +95,21 @@ function HistoryPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="glass p-6 text-center text-sm text-muted-foreground">No bills found.</div>
+        bills.length === 0 ? (
+          <EmptyState
+            icon={<Receipt className="h-6 w-6" />}
+            title="No bills yet"
+            body="Snap your first bill and BillSnap will pull out every item, brand, quantity and price automatically."
+            ctaLabel="Scan a bill"
+            ctaTo="/scan"
+          />
+        ) : (
+          <EmptyState
+            icon={<Search className="h-6 w-6" />}
+            title="No matches"
+            body="Nothing matched that search. Try a different store or category name."
+          />
+        )
       ) : (
         <div className="space-y-2">
           {filtered.map((b, i) => {
