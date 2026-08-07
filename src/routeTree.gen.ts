@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBudgetsRouteImport } from './routes/_authenticated/budgets'
 import { Route as AuthenticatedConsumptionRouteImport } from './routes/_authenticated/consumption'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -53,6 +54,11 @@ const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedBudgetsRoute = AuthenticatedBudgetsRouteImport.update({
   id: '/budgets',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/budgets': typeof AuthenticatedBudgetsRoute
   '/consumption': typeof AuthenticatedConsumptionRoute
   '/history': typeof AuthenticatedHistoryRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/budgets': typeof AuthenticatedBudgetsRoute
   '/_authenticated/consumption': typeof AuthenticatedConsumptionRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/admin'
     | '/budgets'
     | '/consumption'
     | '/history'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/admin'
     | '/budgets'
     | '/consumption'
     | '/history'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/privacy'
     | '/terms'
+    | '/_authenticated/admin'
     | '/_authenticated/budgets'
     | '/_authenticated/consumption'
     | '/_authenticated/history'
@@ -308,6 +320,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/budgets': {
       id: '/_authenticated/budgets'
@@ -418,6 +437,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedBudgetsRoute: typeof AuthenticatedBudgetsRoute
   AuthenticatedConsumptionRoute: typeof AuthenticatedConsumptionRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -436,6 +456,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedBudgetsRoute: AuthenticatedBudgetsRoute,
   AuthenticatedConsumptionRoute: AuthenticatedConsumptionRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,

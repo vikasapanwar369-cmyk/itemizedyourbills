@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight, Users } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight, Users, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
@@ -10,6 +10,8 @@ import { getCategory } from "@/lib/categories";
 import { getBudgetsWithProgress } from "@/lib/budgets.functions";
 import { getShoppingList } from "@/lib/shopping.functions";
 import { getInsights } from "@/lib/insights.functions";
+import { getHousehold } from "@/lib/household.functions";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "BillSnap" }] }),
@@ -20,9 +22,11 @@ function HomePage() {
   const fetchBudgets = useServerFn(getBudgetsWithProgress);
   const fetchShopping = useServerFn(getShoppingList);
   const fetchInsights = useServerFn(getInsights);
+  const fetchHousehold = useServerFn(getHousehold);
   const { data: budgetsData } = useQuery({ queryKey: ["budgets"], queryFn: () => fetchBudgets() });
   const { data: shoppingItems } = useQuery({ queryKey: ["shopping"], queryFn: () => fetchShopping() });
   const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchInsights() });
+  const { data: householdData } = useQuery({ queryKey: ["household"], queryFn: () => fetchHousehold() });
 
   const { data } = useQuery({
     queryKey: ["dashboard"],
@@ -97,8 +101,20 @@ function HomePage() {
           <Link to={"/search" as "/home"} aria-label="Search" className="glass h-10 w-10 flex items-center justify-center">
             <Search className="h-4 w-4" />
           </Link>
+          <Link to={"/settings" as "/home"} aria-label="Settings" className="glass h-10 w-10 flex items-center justify-center">
+            <Settings className="h-4 w-4" />
+          </Link>
         </div>
       </div>
+
+      <OnboardingChecklist
+        state={{
+          scannedBill: (data?.recent.length ?? 0) > 0,
+          setBudget: budgets.length > 0,
+          hasShoppingItems: (shoppingItems ?? []).length > 0,
+          inHousehold: Boolean(householdData?.household),
+        }}
+      />
 
       {/* Hero */}
       <motion.div
