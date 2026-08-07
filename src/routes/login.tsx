@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
@@ -111,6 +111,12 @@ function LoginPage() {
             Continue with Google
           </button>
         </div>
+
+        <p className="mt-5 text-center text-[11px] text-muted-foreground">
+          By continuing you agree to our{" "}
+          <Link to="/terms" className="text-violet-300">Terms</Link> and{" "}
+          <Link to="/privacy" className="text-violet-300">Privacy Policy</Link>.
+        </p>
       </div>
     </div>
   );
