@@ -25,6 +25,7 @@ import { Route as AuthenticatedRecurringRouteImport } from './routes/_authentica
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedShoppingRouteImport } from './routes/_authenticated/shopping'
 import { Route as AuthenticatedBillIdRouteImport } from './routes/_authenticated/bill.$id'
 import { Route as AuthenticatedCategoryKeyRouteImport } from './routes/_authenticated/category.$key'
@@ -109,6 +110,11 @@ const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
   path: '/search',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedShoppingRoute = AuthenticatedShoppingRouteImport.update({
   id: '/shopping',
   path: '/shopping',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/shopping': typeof AuthenticatedShoppingRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/shopping': typeof AuthenticatedShoppingRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shopping': typeof AuthenticatedShoppingRoute
   '/_authenticated/bill/$id': typeof AuthenticatedBillIdRoute
   '/_authenticated/category/$key': typeof AuthenticatedCategoryKeyRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/scan'
     | '/search'
+    | '/settings'
     | '/shopping'
     | '/bill/$id'
     | '/category/$key'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/scan'
     | '/search'
+    | '/settings'
     | '/shopping'
     | '/bill/$id'
     | '/category/$key'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/scan'
     | '/_authenticated/search'
+    | '/_authenticated/settings'
     | '/_authenticated/shopping'
     | '/_authenticated/bill/$id'
     | '/_authenticated/category/$key'
@@ -374,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSearchRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/shopping': {
       id: '/_authenticated/shopping'
       path: '/shopping'
@@ -410,6 +429,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedShoppingRoute: typeof AuthenticatedShoppingRoute
   AuthenticatedBillIdRoute: typeof AuthenticatedBillIdRoute
   AuthenticatedCategoryKeyRoute: typeof AuthenticatedCategoryKeyRoute
@@ -427,6 +447,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedShoppingRoute: AuthenticatedShoppingRoute,
   AuthenticatedBillIdRoute: AuthenticatedBillIdRoute,
   AuthenticatedCategoryKeyRoute: AuthenticatedCategoryKeyRoute,
