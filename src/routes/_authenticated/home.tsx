@@ -106,8 +106,8 @@ function HomePage() {
               </span>
             )}
           </Link>
-          <Link to={"/household" as "/home"} aria-label="Household" className="glass h-10 w-10 flex items-center justify-center">
-            <Users className="h-4 w-4" />
+          <Link to={"/search" as "/home"} aria-label="Search" className="glass h-10 w-10 flex items-center justify-center">
+            <Search className="h-4 w-4" />
           </Link>
           <Link to={"/settings" as "/home"} aria-label="Settings" className="glass h-10 w-10 flex items-center justify-center">
             <Settings className="h-4 w-4" />
