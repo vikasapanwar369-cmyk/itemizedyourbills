@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight } from "lucide-react";
+import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight, Bell, Cookie, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportAllData, deleteAllMyData } from "@/lib/export.functions";
 import { getMyStaffRoles } from "@/lib/admin.functions";
@@ -148,6 +148,29 @@ function SettingsPage() {
         <Link to="/terms" className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
           <ScrollText className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm flex-1">Terms of Service</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link to="/cookies" className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <Cookie className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm flex-1">Cookie &amp; tracking notice</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      </section>
+
+      {/* Notifications & help */}
+      <section className="glass p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-violet-300" />
+          <p className="font-semibold">Alerts &amp; help</p>
+        </div>
+        <Link to={"/notifications" as "/home"} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <Bell className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm flex-1">Notification preferences</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link to={"/support" as "/home"} className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm flex-1">Help &amp; support</span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Link>
       </section>

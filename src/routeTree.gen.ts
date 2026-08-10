@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -22,12 +23,14 @@ import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/h
 import { Route as AuthenticatedHouseholdRouteImport } from './routes/_authenticated/household'
 import { Route as AuthenticatedInflationRouteImport } from './routes/_authenticated/inflation'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated/recurring'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedShoppingRouteImport } from './routes/_authenticated/shopping'
+import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
 import { Route as AuthenticatedBillIdRouteImport } from './routes/_authenticated/bill.$id'
 import { Route as AuthenticatedCategoryKeyRouteImport } from './routes/_authenticated/category.$key'
 
@@ -38,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -96,6 +104,12 @@ const AuthenticatedInsightsRoute = AuthenticatedInsightsRouteImport.update({
   path: '/insights',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRecurringRoute = AuthenticatedRecurringRouteImport.update({
   id: '/recurring',
   path: '/recurring',
@@ -126,6 +140,11 @@ const AuthenticatedShoppingRoute = AuthenticatedShoppingRouteImport.update({
   path: '/shopping',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSupportRoute = AuthenticatedSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBillIdRoute = AuthenticatedBillIdRouteImport.update({
   id: '/bill/$id',
   path: '/bill/$id',
@@ -140,6 +159,7 @@ const AuthenticatedCategoryKeyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -151,17 +171,20 @@ export interface FileRoutesByFullPath {
   '/household': typeof AuthenticatedHouseholdRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shopping': typeof AuthenticatedShoppingRoute
+  '/support': typeof AuthenticatedSupportRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -173,12 +196,14 @@ export interface FileRoutesByTo {
   '/household': typeof AuthenticatedHouseholdRoute
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
   '/search': typeof AuthenticatedSearchRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shopping': typeof AuthenticatedShoppingRoute
+  '/support': typeof AuthenticatedSupportRoute
   '/bill/$id': typeof AuthenticatedBillIdRoute
   '/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
@@ -186,6 +211,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/cookies': typeof CookiesRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -197,12 +223,14 @@ export interface FileRoutesById {
   '/_authenticated/household': typeof AuthenticatedHouseholdRoute
   '/_authenticated/inflation': typeof AuthenticatedInflationRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/shopping': typeof AuthenticatedShoppingRoute
+  '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/bill/$id': typeof AuthenticatedBillIdRoute
   '/_authenticated/category/$key': typeof AuthenticatedCategoryKeyRoute
 }
@@ -210,6 +238,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/cookies'
     | '/login'
     | '/privacy'
     | '/terms'
@@ -221,17 +250,20 @@ export interface FileRouteTypes {
     | '/household'
     | '/inflation'
     | '/insights'
+    | '/notifications'
     | '/recurring'
     | '/reports'
     | '/scan'
     | '/search'
     | '/settings'
     | '/shopping'
+    | '/support'
     | '/bill/$id'
     | '/category/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cookies'
     | '/login'
     | '/privacy'
     | '/terms'
@@ -243,18 +275,21 @@ export interface FileRouteTypes {
     | '/household'
     | '/inflation'
     | '/insights'
+    | '/notifications'
     | '/recurring'
     | '/reports'
     | '/scan'
     | '/search'
     | '/settings'
     | '/shopping'
+    | '/support'
     | '/bill/$id'
     | '/category/$key'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/cookies'
     | '/login'
     | '/privacy'
     | '/terms'
@@ -266,12 +301,14 @@ export interface FileRouteTypes {
     | '/_authenticated/household'
     | '/_authenticated/inflation'
     | '/_authenticated/insights'
+    | '/_authenticated/notifications'
     | '/_authenticated/recurring'
     | '/_authenticated/reports'
     | '/_authenticated/scan'
     | '/_authenticated/search'
     | '/_authenticated/settings'
     | '/_authenticated/shopping'
+    | '/_authenticated/support'
     | '/_authenticated/bill/$id'
     | '/_authenticated/category/$key'
   fileRoutesById: FileRoutesById
@@ -279,6 +316,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  CookiesRoute: typeof CookiesRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
@@ -298,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -377,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInsightsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/recurring': {
       id: '/_authenticated/recurring'
       path: '/recurring'
@@ -419,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShoppingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/support': {
+      id: '/_authenticated/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof AuthenticatedSupportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/bill/$id': {
       id: '/_authenticated/bill/$id'
       path: '/bill/$id'
@@ -445,12 +504,14 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHouseholdRoute: typeof AuthenticatedHouseholdRoute
   AuthenticatedInflationRoute: typeof AuthenticatedInflationRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedShoppingRoute: typeof AuthenticatedShoppingRoute
+  AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedBillIdRoute: typeof AuthenticatedBillIdRoute
   AuthenticatedCategoryKeyRoute: typeof AuthenticatedCategoryKeyRoute
 }
@@ -464,12 +525,14 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHouseholdRoute: AuthenticatedHouseholdRoute,
   AuthenticatedInflationRoute: AuthenticatedInflationRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedShoppingRoute: AuthenticatedShoppingRoute,
+  AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedBillIdRoute: AuthenticatedBillIdRoute,
   AuthenticatedCategoryKeyRoute: AuthenticatedCategoryKeyRoute,
 }
@@ -481,6 +544,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  CookiesRoute: CookiesRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
@@ -488,13 +552,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

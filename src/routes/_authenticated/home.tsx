@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight, Users, Settings } from "lucide-react";
+import { Camera, TrendingUp, TrendingDown, Sparkles, Repeat, Search, Receipt, Package, Store, Target, ShoppingCart, Calendar, ChevronRight, Users, Settings, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { money, shortDate } from "@/lib/format";
@@ -11,6 +11,7 @@ import { getBudgetsWithProgress } from "@/lib/budgets.functions";
 import { getShoppingList } from "@/lib/shopping.functions";
 import { getInsights } from "@/lib/insights.functions";
 import { getHousehold } from "@/lib/household.functions";
+import { getAlerts } from "@/lib/notifications.functions";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -23,10 +24,12 @@ function HomePage() {
   const fetchShopping = useServerFn(getShoppingList);
   const fetchInsights = useServerFn(getInsights);
   const fetchHousehold = useServerFn(getHousehold);
+  const fetchAlerts = useServerFn(getAlerts);
   const { data: budgetsData } = useQuery({ queryKey: ["budgets"], queryFn: () => fetchBudgets() });
   const { data: shoppingItems } = useQuery({ queryKey: ["shopping"], queryFn: () => fetchShopping() });
   const { data: insights } = useQuery({ queryKey: ["insights"], queryFn: () => fetchInsights() });
   const { data: householdData } = useQuery({ queryKey: ["household"], queryFn: () => fetchHousehold() });
+  const { data: alertsData } = useQuery({ queryKey: ["alerts"], queryFn: () => fetchAlerts() });
 
   const { data } = useQuery({
     queryKey: ["dashboard"],
@@ -95,8 +98,13 @@ function HomePage() {
           <h1 className="text-2xl font-bold mt-0.5">{greet} 👋</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={"/household" as "/home"} aria-label="Household" className="glass h-10 w-10 flex items-center justify-center">
-            <Users className="h-4 w-4" />
+          <Link to={"/notifications" as "/home"} aria-label="Alerts" className="glass relative h-10 w-10 flex items-center justify-center">
+            <Bell className="h-4 w-4" />
+            {(alertsData?.counts.total ?? 0) > 0 && (
+              <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-4 text-white">
+                {Math.min(alertsData?.counts.total ?? 0, 99)}
+              </span>
+            )}
           </Link>
           <Link to={"/search" as "/home"} aria-label="Search" className="glass h-10 w-10 flex items-center justify-center">
             <Search className="h-4 w-4" />

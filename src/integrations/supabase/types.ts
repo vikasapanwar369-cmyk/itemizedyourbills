@@ -140,6 +140,27 @@ export type Database = {
         }
         Relationships: []
       }
+      dismissed_alerts: {
+        Row: {
+          alert_key: string
+          dismissed_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          alert_key: string
+          dismissed_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          alert_key?: string
+          dismissed_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       household_members: {
         Row: {
           display_name: string | null
@@ -302,6 +323,39 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          budget_alerts: boolean
+          created_at: string
+          email_enabled: boolean
+          price_alerts: boolean
+          recurring_alerts: boolean
+          refill_alerts: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_alerts?: boolean
+          created_at?: string
+          email_enabled?: boolean
+          price_alerts?: boolean
+          recurring_alerts?: boolean
+          refill_alerts?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_alerts?: boolean
+          created_at?: string
+          email_enabled?: boolean
+          price_alerts?: boolean
+          recurring_alerts?: boolean
+          refill_alerts?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recurring_bills: {
         Row: {
           avg_amount: number
@@ -438,6 +492,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          staff_reply: string | null
+          status: string
+          subject: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          staff_reply?: string | null
+          status?: string
+          subject: string
+          topic?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          staff_reply?: string | null
+          status?: string
+          subject?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
