@@ -63,7 +63,7 @@ export function CookieConsent() {
         exit={{ opacity: 0, y: 30 }}
         role="dialog"
         aria-label="Cookie preferences"
-        className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4"
+        className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-[calc(env(safe-area-inset-bottom)+6.5rem)]"
       >
         <div className="glass-strong mx-auto max-w-md space-y-3 p-4">
           <div className="flex items-start gap-3">
