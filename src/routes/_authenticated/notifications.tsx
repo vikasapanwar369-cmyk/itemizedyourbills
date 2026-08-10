@@ -86,9 +86,9 @@ function NotificationsPage() {
 
       {!isLoading && alerts.length === 0 && (
         <EmptyState
-          icon={BellOff}
+          icon={<BellOff className="h-6 w-6" />}
           title="Nothing needs your attention"
-          description="Budgets are on track, no repeating bills are due and nothing is about to run out."
+          body="Budgets are on track, no repeating bills are due and nothing is about to run out."
         />
       )}
 
