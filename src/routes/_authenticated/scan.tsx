@@ -53,8 +53,8 @@ function ScanPage() {
       }
 
       setProgress("Reading your bill…");
-      const base64 = await fileToBase64(file);
-      const bill = await runScan({ data: { imageBase64: base64, mimeType: file.type || "image/jpeg" } });
+      const prepped = await prepareImage(file);
+      const bill = await runScan({ data: { imageBase64: prepped.base64, mimeType: prepped.mimeType } });
 
       const contentHash = await computeContentHash({
         store: bill.store,
@@ -437,4 +437,45 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"] as const;
+
+/**
+ * Phone photos are often 4000px+ and several MB, which the vision model reads
+ * poorly (and can exceed payload limits). Downscale to max 1600px on the long
+ * edge as JPEG so the text stays crisp but the payload stays small.
+ */
+async function prepareImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  const fallback = async () => ({
+    base64: await fileToBase64(file),
+    mimeType: (ALLOWED_MIME as readonly string[]).includes(file.type) ? file.type : "image/jpeg",
+  });
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = url;
+    });
+    URL.revokeObjectURL(url);
+    const max = 1600;
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+    if (!w || !h) return fallback();
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fallback();
+    ctx.drawImage(img, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const base64 = dataUrl.split(",")[1] ?? "";
+    if (base64.length < 100) return fallback();
+    return { base64, mimeType: "image/jpeg" };
+  } catch {
+    return fallback();
+  }
 }

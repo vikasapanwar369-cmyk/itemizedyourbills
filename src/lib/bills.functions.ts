@@ -225,6 +225,72 @@ function extractJsonContent(json: unknown): unknown {
   throw new Error("AI returned an unreadable response.");
 }
 
+type RawItem = Record<string, unknown>;
+
+/** Find the line-item array no matter which key the model used. */
+function findItemsArray(obj: unknown, depth = 0): RawItem[] {
+  if (!obj || typeof obj !== "object" || depth > 4) return [];
+  const preferred = ["items", "line_items", "lineItems", "bill_items", "products", "purchases", "entries"];
+  const rec = obj as Record<string, unknown>;
+  for (const k of preferred) {
+    const v = rec[k];
+    if (Array.isArray(v) && v.length && typeof v[0] === "object") return v as RawItem[];
+  }
+  for (const v of Object.values(rec)) {
+    if (Array.isArray(v) && v.length && typeof v[0] === "object") {
+      const first = v[0] as RawItem;
+      if ("name" in first || "item_name" in first || "description" in first || "product" in first || "product_name" in first) {
+        return v as RawItem[];
+      }
+    }
+    if (v && typeof v === "object") {
+      const nested = findItemsArray(v, depth + 1);
+      if (nested.length) return nested;
+    }
+  }
+  return [];
+}
+
+function pick(o: RawItem, keys: string[]): unknown {
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+}
+
+function num(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Normalise whatever shape the model returned into our item field names. */
+function normalizeItems(parsedRoot: unknown) {
+  return findItemsArray(parsedRoot).map((raw) => {
+    const name = String(pick(raw, ["name", "item_name", "description", "product", "product_name", "particulars"]) ?? "").trim();
+    const qty = num(pick(raw, ["quantity", "qty", "count", "nos"])) ?? 1;
+    const total = num(pick(raw, ["total_price", "total", "amount", "line_total", "net_amount", "price"]));
+    const unitP = num(pick(raw, ["unit_price", "unitPrice", "rate", "price_per_unit", "mrp_per_unit", "price"]));
+    const resolvedTotal = total ?? (unitP != null ? unitP * (qty || 1) : 0);
+    return {
+      name,
+      brand: (pick(raw, ["brand", "brand_name"]) as string | undefined) ?? null,
+      company: (pick(raw, ["company", "manufacturer", "parent_company"]) as string | undefined) ?? null,
+      category: (pick(raw, ["category", "category_name"]) as string | undefined) ?? undefined,
+      sub_category: (pick(raw, ["sub_category", "subcategory", "sub_category_path"]) as string | undefined) ?? undefined,
+      quantity: qty || 1,
+      unit: (pick(raw, ["unit", "uom"]) as string | undefined) ?? "pcs",
+      unit_weight_or_volume: (pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) as string | undefined) ?? null,
+      mrp: num(pick(raw, ["mrp", "list_price"])),
+      unit_price: unitP ?? (qty ? resolvedTotal / qty : resolvedTotal),
+      discount: num(pick(raw, ["discount", "discount_amount"])) ?? 0,
+      total_price: resolvedTotal,
+      gst_percent: num(pick(raw, ["gst_percent", "gst", "tax_percent"])),
+    };
+  }).filter((it) => it.name.length > 0);
+}
+
 export const scanBill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ScanInput.parse(input))
@@ -235,23 +301,47 @@ export const scanBill = createServerFn({ method: "POST" })
     const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
 
-    const json = await callGateway({
-      model: "google/gemini-2.5-pro",
-      temperature: 0.1,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Parse this bill. Return ONLY raw JSON as specified." },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
+    const ask = async (model: string, nudge: string) =>
+      callGateway({
+        model,
+        temperature: 0.1,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: nudge },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
 
-    const parsed = extractJsonContent(json) as {
+    // Attempt 1: flash (fast, reliable JSON). Attempt 2: pro with a stricter nudge.
+    let root: unknown = null;
+    let rawItems: ReturnType<typeof normalizeItems> = [];
+    const attempts: Array<[string, string]> = [
+      ["google/gemini-2.5-flash", "Parse this bill. Return ONLY raw JSON with an \"items\" array containing every line item."],
+      ["google/gemini-2.5-pro", "Read this receipt very carefully, even if blurry or handwritten. List EVERY line item you can see in an \"items\" array. Never return an empty items array if any product text is visible. Return ONLY raw JSON."],
+    ];
+    for (const [model, nudge] of attempts) {
+      try {
+        const json = await ask(model, nudge);
+        const candidate = extractJsonContent(json);
+        const items = normalizeItems(candidate);
+        if (items.length) { root = candidate; rawItems = items; break; }
+        root = root ?? candidate;
+      } catch (err) {
+        console.error("scanBill attempt failed", model, err instanceof Error ? err.message : err);
+      }
+    }
+
+    if (!rawItems.length) {
+      throw new Error("Couldn't read any items from this photo. Make sure the whole bill is in frame, well lit and in focus, then try again.");
+    }
+
+    const parsed = (root ?? {}) as {
       bill_date?: string;
       bill_time?: string | null;
       bill_number?: string | null;
@@ -267,21 +357,6 @@ export const scanBill = createServerFn({ method: "POST" })
       subtotal?: number;
       tax?: number;
       discount?: number;
-      items?: Array<{
-        name: string;
-        brand?: string | null;
-        company?: string | null;
-        category?: string;
-        sub_category?: string;
-        quantity?: number;
-        unit?: string;
-        unit_weight_or_volume?: string | null;
-        mrp?: number | null;
-        unit_price?: number;
-        discount?: number;
-        total_price?: number;
-        gst_percent?: number | null;
-      }>;
     };
 
     const resolveCat = (label?: string) => {
@@ -291,7 +366,7 @@ export const scanBill = createServerFn({ method: "POST" })
       return { key, id, label: label || "Other" };
     };
 
-    const items = (parsed.items ?? []).map((it) => {
+    const items = rawItems.map((it) => {
       const cat = resolveCat(it.category);
       const qty = Number(it.quantity ?? 1) || 1;
       const total = Number(it.total_price ?? 0);
@@ -326,8 +401,13 @@ export const scanBill = createServerFn({ method: "POST" })
     if (!items.length) throw new Error("No items detected on this bill. Try a clearer photo.");
 
     return ScannedBillSchema.parse({
-      store: parsed.merchant_name ?? "Unknown",
-      date: parsed.bill_date,
+      store:
+        parsed.merchant_name ??
+        (parsed as Record<string, string | undefined>).store ??
+        (parsed as Record<string, string | undefined>).merchant ??
+        (parsed as Record<string, string | undefined>).shop_name ??
+        "Unknown",
+      date: parsed.bill_date ?? (parsed as Record<string, string | undefined>).date,
       time: parsed.bill_time ?? null,
       bill_number: parsed.bill_number ?? null,
       merchant_address: parsed.merchant_address ?? null,
