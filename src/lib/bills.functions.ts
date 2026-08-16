@@ -401,8 +401,13 @@ export const scanBill = createServerFn({ method: "POST" })
     if (!items.length) throw new Error("No items detected on this bill. Try a clearer photo.");
 
     return ScannedBillSchema.parse({
-      store: parsed.merchant_name ?? "Unknown",
-      date: parsed.bill_date,
+      store:
+        parsed.merchant_name ??
+        (parsed as Record<string, string | undefined>).store ??
+        (parsed as Record<string, string | undefined>).merchant ??
+        (parsed as Record<string, string | undefined>).shop_name ??
+        "Unknown",
+      date: parsed.bill_date ?? (parsed as Record<string, string | undefined>).date,
       time: parsed.bill_time ?? null,
       bill_number: parsed.bill_number ?? null,
       merchant_address: parsed.merchant_address ?? null,
