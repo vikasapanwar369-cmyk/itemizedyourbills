@@ -442,9 +442,9 @@ function fileToBase64(file: File): Promise<string> {
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"] as const;
 
 /**
- * Phone photos are often 4000px+ and several MB, which the vision model reads
- * poorly (and can exceed payload limits). Downscale to max 1600px on the long
- * edge as JPEG so the text stays crisp but the payload stays small.
+ * Keep enough resolution for tiny receipt text while staying under request
+ * limits. A 2400px long edge is materially more accurate than 1600px on long,
+ * dense supermarket invoices without sending the original 8–20MB phone photo.
  */
 async function prepareImage(file: File): Promise<{ base64: string; mimeType: string }> {
   const fallback = async () => ({
@@ -460,7 +460,7 @@ async function prepareImage(file: File): Promise<{ base64: string; mimeType: str
       el.src = url;
     });
     URL.revokeObjectURL(url);
-    const max = 1600;
+    const max = 2400;
     const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
     const w = Math.round(img.naturalWidth * scale);
     const h = Math.round(img.naturalHeight * scale);
@@ -470,8 +470,10 @@ async function prepareImage(file: File): Promise<{ base64: string; mimeType: str
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return fallback();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
     const base64 = dataUrl.split(",")[1] ?? "";
     if (base64.length < 100) return fallback();
     return { base64, mimeType: "image/jpeg" };
