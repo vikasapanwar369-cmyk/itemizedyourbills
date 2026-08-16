@@ -225,6 +225,72 @@ function extractJsonContent(json: unknown): unknown {
   throw new Error("AI returned an unreadable response.");
 }
 
+type RawItem = Record<string, unknown>;
+
+/** Find the line-item array no matter which key the model used. */
+function findItemsArray(obj: unknown, depth = 0): RawItem[] {
+  if (!obj || typeof obj !== "object" || depth > 4) return [];
+  const preferred = ["items", "line_items", "lineItems", "bill_items", "products", "purchases", "entries"];
+  const rec = obj as Record<string, unknown>;
+  for (const k of preferred) {
+    const v = rec[k];
+    if (Array.isArray(v) && v.length && typeof v[0] === "object") return v as RawItem[];
+  }
+  for (const v of Object.values(rec)) {
+    if (Array.isArray(v) && v.length && typeof v[0] === "object") {
+      const first = v[0] as RawItem;
+      if ("name" in first || "item_name" in first || "description" in first || "product" in first || "product_name" in first) {
+        return v as RawItem[];
+      }
+    }
+    if (v && typeof v === "object") {
+      const nested = findItemsArray(v, depth + 1);
+      if (nested.length) return nested;
+    }
+  }
+  return [];
+}
+
+function pick(o: RawItem, keys: string[]): unknown {
+  for (const k of keys) {
+    const v = o[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return undefined;
+}
+
+function num(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Normalise whatever shape the model returned into our item field names. */
+function normalizeItems(parsedRoot: unknown) {
+  return findItemsArray(parsedRoot).map((raw) => {
+    const name = String(pick(raw, ["name", "item_name", "description", "product", "product_name", "particulars"]) ?? "").trim();
+    const qty = num(pick(raw, ["quantity", "qty", "count", "nos"])) ?? 1;
+    const total = num(pick(raw, ["total_price", "total", "amount", "line_total", "net_amount", "price"]));
+    const unitP = num(pick(raw, ["unit_price", "unitPrice", "rate", "price_per_unit", "mrp_per_unit", "price"]));
+    const resolvedTotal = total ?? (unitP != null ? unitP * (qty || 1) : 0);
+    return {
+      name,
+      brand: (pick(raw, ["brand", "brand_name"]) as string | undefined) ?? null,
+      company: (pick(raw, ["company", "manufacturer", "parent_company"]) as string | undefined) ?? null,
+      category: (pick(raw, ["category", "category_name"]) as string | undefined) ?? undefined,
+      sub_category: (pick(raw, ["sub_category", "subcategory", "sub_category_path"]) as string | undefined) ?? undefined,
+      quantity: qty || 1,
+      unit: (pick(raw, ["unit", "uom"]) as string | undefined) ?? "pcs",
+      unit_weight_or_volume: (pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) as string | undefined) ?? null,
+      mrp: num(pick(raw, ["mrp", "list_price"])),
+      unit_price: unitP ?? (qty ? resolvedTotal / qty : resolvedTotal),
+      discount: num(pick(raw, ["discount", "discount_amount"])) ?? 0,
+      total_price: resolvedTotal,
+      gst_percent: num(pick(raw, ["gst_percent", "gst", "tax_percent"])),
+    };
+  }).filter((it) => it.name.length > 0);
+}
+
 export const scanBill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ScanInput.parse(input))
