@@ -291,6 +291,29 @@ function normalizeItems(parsedRoot: unknown) {
   }).filter((it) => it.name.length > 0);
 }
 
+function billNumbers(parsedRoot: unknown) {
+  const parsed = (parsedRoot ?? {}) as Record<string, unknown>;
+  const total = num(pick(parsed, ["grand_total", "total", "amount_paid", "net_total"])) ?? 0;
+  const items = normalizeItems(parsedRoot);
+  const itemTotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.total_price) || 0), 0);
+  return { total, itemTotal, itemCount: items.length };
+}
+
+/** A weak first pass is retried instead of being mistaken for a complete scan. */
+function scanLooksComplete(parsedRoot: unknown) {
+  const { total, itemTotal, itemCount } = billNumbers(parsedRoot);
+  if (itemCount === 0) return false;
+  if (itemCount === 1 && total > 0 && itemTotal < total * 0.8) return false;
+  if (total > 0 && itemTotal > 0 && itemTotal < total * 0.55) return false;
+  return true;
+}
+
+function scanScore(parsedRoot: unknown) {
+  const { total, itemTotal, itemCount } = billNumbers(parsedRoot);
+  const coverage = total > 0 ? Math.min(1, itemTotal / total) : itemCount > 0 ? 0.5 : 0;
+  return itemCount * 10 + coverage * 5;
+}
+
 export const scanBill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => ScanInput.parse(input))
@@ -318,27 +341,78 @@ export const scanBill = createServerFn({ method: "POST" })
         response_format: { type: "json_object" },
       });
 
-    // Attempt 1: flash (fast, reliable JSON). Attempt 2: pro with a stricter nudge.
+    // Start fast, but retry any suspiciously incomplete result. Keep the best
+    // candidate rather than accepting the first model that happens to return JSON.
     let root: unknown = null;
-    let rawItems: ReturnType<typeof normalizeItems> = [];
+    let bestScore = -1;
     const attempts: Array<[string, string]> = [
-      ["google/gemini-2.5-flash", "Parse this bill. Return ONLY raw JSON with an \"items\" array containing every line item."],
-      ["google/gemini-2.5-pro", "Read this receipt very carefully, even if blurry or handwritten. List EVERY line item you can see in an \"items\" array. Never return an empty items array if any product text is visible. Return ONLY raw JSON."],
+      ["google/gemini-2.5-flash", "Inspect the entire bill from top edge to bottom edge. Read every printed product row, including faint and abbreviated rows. Return ONLY raw JSON with an items array containing every purchasable line item; do not treat totals, tax or payment rows as products."],
+      ["google/gemini-2.5-pro", "Perform a meticulous second OCR pass over this receipt. Follow columns and row alignment, expand common retail abbreviations only when clear, and capture EVERY product row from top to bottom. Never return an empty items array when product text is visible. Return ONLY raw JSON."],
     ];
     for (const [model, nudge] of attempts) {
       try {
         const json = await ask(model, nudge);
         const candidate = extractJsonContent(json);
-        const items = normalizeItems(candidate);
-        if (items.length) { root = candidate; rawItems = items; break; }
-        root = root ?? candidate;
+        const score = scanScore(candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          root = candidate;
+        }
+        if (scanLooksComplete(candidate)) break;
       } catch (err) {
         console.error("scanBill attempt failed", model, err instanceof Error ? err.message : err);
       }
     }
 
+    let rawItems = normalizeItems(root);
+
+    // Last-resort two-stage OCR: first transcribe the bill without imposing a
+    // schema, then convert that transcription to our JSON shape. This recovers
+    // many dense, faded and unusually formatted invoices that vision-to-JSON
+    // models otherwise answer with an empty array.
     if (!rawItems.length) {
-      throw new Error("Couldn't read any items from this photo. Make sure the whole bill is in frame, well lit and in focus, then try again.");
+      try {
+        const ocrJson = await callGateway({
+          model: "google/gemini-2.5-pro",
+          temperature: 0,
+          messages: [
+            {
+              role: "system",
+              content: "You are a forensic receipt OCR engine. Transcribe all visible text in reading order. Preserve each item row and its quantity, rate and amount columns. Return JSON only as {\"transcription\":\"...\"}.",
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Transcribe this complete bill from top to bottom. Do not summarize and do not omit faint rows." },
+                { type: "image_url", image_url: { url: dataUrl } },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+        });
+        const ocrRoot = extractJsonContent(ocrJson) as Record<string, unknown>;
+        const transcription = String(ocrRoot.transcription ?? ocrRoot.text ?? "").trim();
+        if (transcription.length > 20) {
+          const structuredJson = await callGateway({
+            model: "google/gemini-2.5-flash",
+            temperature: 0.1,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: `Convert this OCR transcription into the required bill JSON. Preserve every product row.\n\n${transcription}` },
+            ],
+            response_format: { type: "json_object" },
+          });
+          const recovered = extractJsonContent(structuredJson);
+          if (normalizeItems(recovered).length) root = recovered;
+        }
+      } catch (err) {
+        console.error("scanBill OCR recovery failed", err instanceof Error ? err.message : err);
+      }
+      rawItems = normalizeItems(root);
+    }
+
+    if (!rawItems.length) {
+      throw new Error("This photo is too unclear to read reliably. Retake it with the full bill flat, close, well lit and in focus.");
     }
 
     const parsed = (root ?? {}) as {
