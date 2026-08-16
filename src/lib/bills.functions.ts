@@ -301,23 +301,47 @@ export const scanBill = createServerFn({ method: "POST" })
     const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
 
-    const json = await callGateway({
-      model: "google/gemini-2.5-pro",
-      temperature: 0.1,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Parse this bill. Return ONLY raw JSON as specified." },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
+    const ask = async (model: string, nudge: string) =>
+      callGateway({
+        model,
+        temperature: 0.1,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: nudge },
+              { type: "image_url", image_url: { url: dataUrl } },
+            ],
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
 
-    const parsed = extractJsonContent(json) as {
+    // Attempt 1: flash (fast, reliable JSON). Attempt 2: pro with a stricter nudge.
+    let root: unknown = null;
+    let rawItems: ReturnType<typeof normalizeItems> = [];
+    const attempts: Array<[string, string]> = [
+      ["google/gemini-2.5-flash", "Parse this bill. Return ONLY raw JSON with an \"items\" array containing every line item."],
+      ["google/gemini-2.5-pro", "Read this receipt very carefully, even if blurry or handwritten. List EVERY line item you can see in an \"items\" array. Never return an empty items array if any product text is visible. Return ONLY raw JSON."],
+    ];
+    for (const [model, nudge] of attempts) {
+      try {
+        const json = await ask(model, nudge);
+        const candidate = extractJsonContent(json);
+        const items = normalizeItems(candidate);
+        if (items.length) { root = candidate; rawItems = items; break; }
+        root = root ?? candidate;
+      } catch (err) {
+        console.error("scanBill attempt failed", model, err instanceof Error ? err.message : err);
+      }
+    }
+
+    if (!rawItems.length) {
+      throw new Error("Couldn't read any items from this photo. Make sure the whole bill is in frame, well lit and in focus, then try again.");
+    }
+
+    const parsed = (root ?? {}) as {
       bill_date?: string;
       bill_time?: string | null;
       bill_number?: string | null;
@@ -333,21 +357,6 @@ export const scanBill = createServerFn({ method: "POST" })
       subtotal?: number;
       tax?: number;
       discount?: number;
-      items?: Array<{
-        name: string;
-        brand?: string | null;
-        company?: string | null;
-        category?: string;
-        sub_category?: string;
-        quantity?: number;
-        unit?: string;
-        unit_weight_or_volume?: string | null;
-        mrp?: number | null;
-        unit_price?: number;
-        discount?: number;
-        total_price?: number;
-        gst_percent?: number | null;
-      }>;
     };
 
     const resolveCat = (label?: string) => {
@@ -357,7 +366,7 @@ export const scanBill = createServerFn({ method: "POST" })
       return { key, id, label: label || "Other" };
     };
 
-    const items = (parsed.items ?? []).map((it) => {
+    const items = rawItems.map((it) => {
       const cat = resolveCat(it.category);
       const qty = Number(it.quantity ?? 1) || 1;
       const total = Number(it.total_price ?? 0);
