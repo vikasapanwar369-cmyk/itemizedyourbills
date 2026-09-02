@@ -180,19 +180,39 @@ const TOOL_SCHEMA = {
 async function callGateway(body: unknown) {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("AI gateway not configured");
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (resp.status === 429) throw new Error("Rate limit reached. Please try again in a moment.");
-  if (resp.status === 402) throw new Error("AI credits exhausted. Top up in Cloud → Usage.");
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error("AI gateway failed", resp.status, text);
-    throw new Error("AI service error. Please try again.");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (resp.ok) return resp.json();
+
+    const raw = await resp.text();
+    let gatewayMessage = "";
+    try {
+      const payload = JSON.parse(raw) as { message?: string; error?: { message?: string } };
+      gatewayMessage = payload.error?.message ?? payload.message ?? "";
+    } catch {
+      gatewayMessage = "";
+    }
+    console.error("AI gateway failed", resp.status, raw);
+
+    const retryable = resp.status === 429 || resp.status >= 500;
+    if (retryable && attempt === 0) {
+      const retryAfter = Number(resp.headers.get("Retry-After"));
+      const delayMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 900;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      continue;
+    }
+    if (resp.status === 401) throw new Error("Bill scanning is not configured correctly.");
+    if (resp.status === 402 || resp.status === 403) {
+      throw new Error(gatewayMessage || "Bill scanning is temporarily unavailable for this workspace.");
+    }
+    if (resp.status === 429) throw new Error("The scanner is busy. Please try again in a moment.");
+    throw new Error(gatewayMessage || "AI service error. Please try again.");
   }
-  return resp.json();
+  throw new Error("AI service error. Please try again.");
 }
 
 function extractToolArgs(json: unknown): unknown {
@@ -323,13 +343,15 @@ export const scanBill = createServerFn({ method: "POST" })
     const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
     const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
+    const catKeyById = new Map(tax.categories.map((c) => [c.id, c.key]));
+    const taxonomyPrompt = buildTaxonomyPrompt(tax.categories, tax.subcategories, catKeyById);
 
     const ask = async (model: string, nudge: string) =>
       callGateway({
         model,
         temperature: 0.1,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: `${SYSTEM_PROMPT}\n\nUse this exact live taxonomy when categorising items:\n${taxonomyPrompt}` },
           {
             role: "user",
             content: [
