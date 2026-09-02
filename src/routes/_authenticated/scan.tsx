@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
   component: ScanPage,
 });
 
-type Phase = "idle" | "reading" | "review" | "saving" | "dup" | "done";
+type Phase = "idle" | "reading" | "review" | "saving" | "dup" | "done" | "error";
 type DupBill = { id: string; store: string; bill_date: string; total: number; currency: string };
 
 function ScanPage() {
@@ -34,9 +34,12 @@ function ScanPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPhash, setPendingPhash] = useState<string>("");
   const [draft, setDraft] = useState<ScannedBill | null>(null);
+  const [scanError, setScanError] = useState("");
 
   async function onFile(file: File) {
     setPreview(URL.createObjectURL(file));
+    setPendingFile(file);
+    setScanError("");
     setPhase("reading");
     setProgress("Checking against your past bills…");
     try {
@@ -76,9 +79,10 @@ function ScanPage() {
       setDraft(bill);
       setPhase("review");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save");
-      setPhase("idle");
-      setPreview(null);
+      const message = err instanceof Error ? err.message : "Could not read this bill";
+      toast.error(message);
+      setScanError(message);
+      setPhase("error");
     }
   }
 
@@ -298,6 +302,25 @@ function ScanPage() {
             <div className="h-14 w-14 rounded-full border-4 border-violet-400/30 border-t-violet-400 animate-spin" />
             <p className="font-medium">{progress}</p>
             <p className="text-xs text-muted-foreground">Categorising every line item automatically</p>
+          </div>
+        </div>
+      )}
+
+      {phase === "error" && pendingFile && (
+        <div className="space-y-3">
+          {preview && <img src={preview} alt="Bill ready to retry" className="w-full rounded-2xl border border-border max-h-56 object-contain" />}
+          <div className="glass-strong p-5 space-y-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">We couldn’t read this photo reliably</p>
+                <p className="text-xs text-muted-foreground mt-1">{scanError}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => { setPendingFile(null); setPreview(null); setPhase("idle"); }} className="glass py-3 text-sm font-medium">Choose another</button>
+              <button onClick={() => onFile(pendingFile)} className="py-3 text-sm font-semibold rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">Retry scan</button>
+            </div>
           </div>
         </div>
       )}
