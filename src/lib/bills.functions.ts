@@ -334,14 +334,34 @@ function scanScore(parsedRoot: unknown) {
   return itemCount * 10 + coverage * 5;
 }
 
-export const scanBill = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => ScanInput.parse(input))
-  .handler(async ({ data }) => {
+/**
+ * Full OCR + categorisation pipeline. Exported so it can be exercised directly
+ * (tests/diagnostics) with the exact code path the app uses.
+ */
+export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
+  {
     const tax = await loadTaxonomy();
-    // Match the user's fixed category enum (label) to our taxonomy rows by label/key.
-    const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
-    const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
+    // The model may answer with a taxonomy key ("dairy"), our exact label
+    // ("Mobile & Accessories") or the short label from the prompt ("Mobile"),
+    // so build a lookup that accepts all three shapes.
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const catLookup = new Map<string, { key: string; id: string }>();
+    for (const c of tax.categories) {
+      const entry = { key: c.key, id: c.id };
+      const aliases = new Set([slug(c.key), slug(c.label)]);
+      // "Mobile & Accessories" → also "mobile"; "Dairy & Eggs" → also "dairy"
+      const first = c.label.split(/[&>/]/)[0]?.trim();
+      if (first) aliases.add(slug(first));
+      aliases.add(slug(c.key.split("_")[0] ?? ""));
+      for (const a of aliases) if (a && !catLookup.has(a)) catLookup.set(a, entry);
+    }
+    const subLookup = new Map<string, { id: string; category_id: string }>();
+    for (const s of tax.subcategories) {
+      for (const a of [slug(s.key), slug(s.label)]) {
+        if (a && !subLookup.has(a)) subLookup.set(a, { id: s.id, category_id: s.category_id });
+      }
+    }
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
     const catKeyById = new Map(tax.categories.map((c) => [c.id, c.key]));
     const taxonomyPrompt = buildTaxonomyPrompt(tax.categories, tax.subcategories, catKeyById);
@@ -455,15 +475,36 @@ export const scanBill = createServerFn({ method: "POST" })
       discount?: number;
     };
 
-    const resolveCat = (label?: string) => {
-      const l = (label ?? "").toLowerCase().trim();
-      const key = catKeyByLabel.get(l) ?? "other";
-      const id = catIdByLabel.get(l) ?? tax.catIdByKey.get("other") ?? null;
-      return { key, id, label: label || "Other" };
+    const resolveCat = (raw?: string) => {
+      const hit = catLookup.get(slug(raw ?? ""));
+      if (hit) return { key: hit.key, id: hit.id };
+      return { key: "other", id: tax.catIdByKey.get("other") ?? null };
+    };
+
+    /** "Dairy > Paneer" → the paneer subcategory row (child part wins). */
+    const resolveSub = (subPath?: string, subKey?: string) => {
+      const parts = String(subPath ?? "").split(">").map((p) => p.trim()).filter(Boolean);
+      const candidates = [subKey, parts[parts.length - 1], parts[0]].filter(Boolean) as string[];
+      for (const c of candidates) {
+        const hit = subLookup.get(slug(c));
+        if (hit) return hit;
+      }
+      return null;
     };
 
     const items = rawItems.map((it) => {
-      const cat = resolveCat(it.category);
+      const sub = resolveSub(it.sub_category, (it as { subcategory_key?: string }).subcategory_key);
+      let cat = resolveCat(it.category);
+      // A confident subcategory match also pins the parent category.
+      if (cat.key === "other" && sub) {
+        const parentKey = [...tax.catIdByKey.entries()].find(([, id]) => id === sub.category_id)?.[0];
+        if (parentKey) cat = { key: parentKey, id: sub.category_id };
+      }
+      // Fall back to the parent segment of the subcategory path ("Dairy > Milk").
+      if (cat.key === "other" && it.sub_category) {
+        const parent = String(it.sub_category).split(">")[0]?.trim();
+        if (parent) cat = resolveCat(parent);
+      }
       const qty = Number(it.quantity ?? 1) || 1;
       const total = Number(it.total_price ?? 0);
       const unitPrice = Number(it.unit_price ?? (qty > 0 ? total / qty : 0));
@@ -483,7 +524,7 @@ export const scanBill = createServerFn({ method: "POST" })
         sub: it.sub_category || "Other",
         category: cat.key,
         category_id: cat.id,
-        subcategory_id: null as string | null,
+        subcategory_id: sub?.id ?? null,
         confidence: 0.9,
       };
     });
@@ -519,7 +560,13 @@ export const scanBill = createServerFn({ method: "POST" })
       payment_mode: (parsed.payment_mode ?? "unknown").toLowerCase(),
       items,
     });
-  });
+  }
+}
+
+export const scanBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ScanInput.parse(input))
+  .handler(async ({ data }) => extractBillFromImage(data));
 
 /**
  * Re-classify legacy items that have no category_id (or low confidence)
