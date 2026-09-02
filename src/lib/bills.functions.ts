@@ -475,15 +475,36 @@ export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
       discount?: number;
     };
 
-    const resolveCat = (label?: string) => {
-      const l = (label ?? "").toLowerCase().trim();
-      const key = catKeyByLabel.get(l) ?? "other";
-      const id = catIdByLabel.get(l) ?? tax.catIdByKey.get("other") ?? null;
-      return { key, id, label: label || "Other" };
+    const resolveCat = (raw?: string) => {
+      const hit = catLookup.get(slug(raw ?? ""));
+      if (hit) return { key: hit.key, id: hit.id };
+      return { key: "other", id: tax.catIdByKey.get("other") ?? null };
+    };
+
+    /** "Dairy > Paneer" → the paneer subcategory row (child part wins). */
+    const resolveSub = (subPath?: string, subKey?: string) => {
+      const parts = String(subPath ?? "").split(">").map((p) => p.trim()).filter(Boolean);
+      const candidates = [subKey, parts[parts.length - 1], parts[0]].filter(Boolean) as string[];
+      for (const c of candidates) {
+        const hit = subLookup.get(slug(c));
+        if (hit) return hit;
+      }
+      return null;
     };
 
     const items = rawItems.map((it) => {
-      const cat = resolveCat(it.category);
+      const sub = resolveSub(it.sub_category, (it as { subcategory_key?: string }).subcategory_key);
+      let cat = resolveCat(it.category);
+      // A confident subcategory match also pins the parent category.
+      if (cat.key === "other" && sub) {
+        const parentKey = [...tax.catIdByKey.entries()].find(([, id]) => id === sub.category_id)?.[0];
+        if (parentKey) cat = { key: parentKey, id: sub.category_id };
+      }
+      // Fall back to the parent segment of the subcategory path ("Dairy > Milk").
+      if (cat.key === "other" && it.sub_category) {
+        const parent = String(it.sub_category).split(">")[0]?.trim();
+        if (parent) cat = resolveCat(parent);
+      }
       const qty = Number(it.quantity ?? 1) || 1;
       const total = Number(it.total_price ?? 0);
       const unitPrice = Number(it.unit_price ?? (qty > 0 ? total / qty : 0));
@@ -503,7 +524,7 @@ export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
         sub: it.sub_category || "Other",
         category: cat.key,
         category_id: cat.id,
-        subcategory_id: null as string | null,
+        subcategory_id: sub?.id ?? null,
         confidence: 0.9,
       };
     });
