@@ -521,7 +521,13 @@ export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
       payment_mode: (parsed.payment_mode ?? "unknown").toLowerCase(),
       items,
     });
-  });
+  }
+}
+
+export const scanBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ScanInput.parse(input))
+  .handler(async ({ data }) => extractBillFromImage(data));
 
 /**
  * Re-classify legacy items that have no category_id (or low confidence)
