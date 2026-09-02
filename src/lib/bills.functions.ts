@@ -334,10 +334,12 @@ function scanScore(parsedRoot: unknown) {
   return itemCount * 10 + coverage * 5;
 }
 
-export const scanBill = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => ScanInput.parse(input))
-  .handler(async ({ data }) => {
+/**
+ * Full OCR + categorisation pipeline. Exported so it can be exercised directly
+ * (tests/diagnostics) with the exact code path the app uses.
+ */
+export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
+  {
     const tax = await loadTaxonomy();
     // Match the user's fixed category enum (label) to our taxonomy rows by label/key.
     const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
