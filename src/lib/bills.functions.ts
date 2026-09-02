@@ -341,9 +341,27 @@ function scanScore(parsedRoot: unknown) {
 export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
   {
     const tax = await loadTaxonomy();
-    // Match the user's fixed category enum (label) to our taxonomy rows by label/key.
-    const catIdByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.id]));
-    const catKeyByLabel = new Map(tax.categories.map((c) => [c.label.toLowerCase(), c.key]));
+    // The model may answer with a taxonomy key ("dairy"), our exact label
+    // ("Mobile & Accessories") or the short label from the prompt ("Mobile"),
+    // so build a lookup that accepts all three shapes.
+    const slug = (s: string) =>
+      s.toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const catLookup = new Map<string, { key: string; id: string }>();
+    for (const c of tax.categories) {
+      const entry = { key: c.key, id: c.id };
+      const aliases = new Set([slug(c.key), slug(c.label)]);
+      // "Mobile & Accessories" → also "mobile"; "Dairy & Eggs" → also "dairy"
+      const first = c.label.split(/[&>/]/)[0]?.trim();
+      if (first) aliases.add(slug(first));
+      aliases.add(slug(c.key.split("_")[0] ?? ""));
+      for (const a of aliases) if (a && !catLookup.has(a)) catLookup.set(a, entry);
+    }
+    const subLookup = new Map<string, { id: string; category_id: string }>();
+    for (const s of tax.subcategories) {
+      for (const a of [slug(s.key), slug(s.label)]) {
+        if (a && !subLookup.has(a)) subLookup.set(a, { id: s.id, category_id: s.category_id });
+      }
+    }
     const dataUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
     const catKeyById = new Map(tax.categories.map((c) => [c.id, c.key]));
     const taxonomyPrompt = buildTaxonomyPrompt(tax.categories, tax.subcategories, catKeyById);
