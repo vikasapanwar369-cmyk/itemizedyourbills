@@ -24,6 +24,7 @@ import { Route as AuthenticatedHouseholdRouteImport } from './routes/_authentica
 import { Route as AuthenticatedInflationRouteImport } from './routes/_authenticated/inflation'
 import { Route as AuthenticatedInsightsRouteImport } from './routes/_authenticated/insights'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
+import { Route as AuthenticatedPrivacyCenterRouteImport } from './routes/_authenticated/privacy-center'
 import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated/recurring'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
@@ -110,6 +111,12 @@ const AuthenticatedNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPrivacyCenterRoute =
+  AuthenticatedPrivacyCenterRouteImport.update({
+    id: '/privacy-center',
+    path: '/privacy-center',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRecurringRoute = AuthenticatedRecurringRouteImport.update({
   id: '/recurring',
   path: '/recurring',
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
+  '/privacy-center': typeof AuthenticatedPrivacyCenterRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -197,6 +205,7 @@ export interface FileRoutesByTo {
   '/inflation': typeof AuthenticatedInflationRoute
   '/insights': typeof AuthenticatedInsightsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
+  '/privacy-center': typeof AuthenticatedPrivacyCenterRoute
   '/recurring': typeof AuthenticatedRecurringRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -224,6 +233,7 @@ export interface FileRoutesById {
   '/_authenticated/inflation': typeof AuthenticatedInflationRoute
   '/_authenticated/insights': typeof AuthenticatedInsightsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
+  '/_authenticated/privacy-center': typeof AuthenticatedPrivacyCenterRoute
   '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/inflation'
     | '/insights'
     | '/notifications'
+    | '/privacy-center'
     | '/recurring'
     | '/reports'
     | '/scan'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/inflation'
     | '/insights'
     | '/notifications'
+    | '/privacy-center'
     | '/recurring'
     | '/reports'
     | '/scan'
@@ -302,6 +314,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inflation'
     | '/_authenticated/insights'
     | '/_authenticated/notifications'
+    | '/_authenticated/privacy-center'
     | '/_authenticated/recurring'
     | '/_authenticated/reports'
     | '/_authenticated/scan'
@@ -429,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/privacy-center': {
+      id: '/_authenticated/privacy-center'
+      path: '/privacy-center'
+      fullPath: '/privacy-center'
+      preLoaderRoute: typeof AuthenticatedPrivacyCenterRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/recurring': {
       id: '/_authenticated/recurring'
       path: '/recurring'
@@ -505,6 +525,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInflationRoute: typeof AuthenticatedInflationRoute
   AuthenticatedInsightsRoute: typeof AuthenticatedInsightsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
+  AuthenticatedPrivacyCenterRoute: typeof AuthenticatedPrivacyCenterRoute
   AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
@@ -526,6 +547,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInflationRoute: AuthenticatedInflationRoute,
   AuthenticatedInsightsRoute: AuthenticatedInsightsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
+  AuthenticatedPrivacyCenterRoute: AuthenticatedPrivacyCenterRoute,
   AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
