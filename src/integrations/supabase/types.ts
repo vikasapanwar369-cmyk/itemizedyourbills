@@ -140,6 +140,42 @@ export type Database = {
         }
         Relationships: []
       }
+      data_requests: {
+        Row: {
+          created_at: string
+          details: string
+          id: string
+          kind: string
+          resolution: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string
+          id?: string
+          kind?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: string
+          id?: string
+          kind?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dismissed_alerts: {
         Row: {
           alert_key: string
@@ -526,6 +562,42 @@ export type Database = {
           topic?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_consents: {
+        Row: {
+          created_at: string
+          granted: boolean
+          granted_at: string | null
+          id: string
+          notice_version: string
+          purpose: string
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          granted?: boolean
+          granted_at?: string | null
+          id?: string
+          notice_version?: string
+          purpose: string
+          updated_at?: string
+          user_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          granted?: boolean
+          granted_at?: string | null
+          id?: string
+          notice_version?: string
+          purpose?: string
+          updated_at?: string
+          user_id?: string
+          withdrawn_at?: string | null
         }
         Relationships: []
       }
