@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight, Bell, Cookie, HelpCircle } from "lucide-react";
+import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight, Bell, Cookie, HelpCircle, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportAllData, deleteAllMyData } from "@/lib/export.functions";
 import { getMyStaffRoles } from "@/lib/admin.functions";
