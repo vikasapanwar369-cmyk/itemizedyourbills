@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Receipt } from "lucide-react";
+import { acceptNotice } from "@/lib/dpdp.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — BillSnap" }] }),
@@ -16,13 +17,19 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) navigate({ to: "/home", replace: true });
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      if (s?.user) navigate({ to: "/home", replace: true });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((e, s) => {
+      if (!s?.user) return;
+      if (e === "SIGNED_IN") {
+        // DPDP Act, Sec. 5/6: record acceptance of the current privacy notice.
+        void acceptNotice().catch(() => {});
+      }
+      navigate({ to: "/home", replace: true });
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -32,6 +39,7 @@ function LoginPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
+        if (!agreed) throw new Error("Please tick the consent box to create an account");
         const { error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: window.location.origin },
@@ -94,8 +102,24 @@ function LoginPage() {
               value={password} onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-violet-400 transition"
             />
+            {mode === "signup" && (
+              <label className="flex items-start gap-2.5 rounded-xl bg-white/[0.04] p-3 text-[11px] leading-relaxed text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-violet-500"
+                />
+                <span>
+                  I have read the{" "}
+                  <Link to="/privacy" className="text-violet-300">privacy notice</Link> and consent to BillSnap storing
+                  my bills and sending my bill photos to its AI reader to extract the items. I can withdraw optional
+                  consents any time in the Privacy Centre.
+                </span>
+              </label>
+            )}
             <button
-              type="submit" disabled={loading}
+              type="submit" disabled={loading || (mode === "signup" && !agreed)}
               className="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-600 py-3 text-sm font-semibold text-white shadow-lg glow-violet disabled:opacity-50">
               {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>

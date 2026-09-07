@@ -112,3 +112,31 @@ export const lookupUser = createServerFn({ method: "POST" })
       },
     };
   });
+/** DPDP Act, Sec. 13: staff queue of Data Principal rights requests. */
+export const listDataRequests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertStaff(context.supabase, context.userId);
+    const { data, error } = await context.supabase
+      .from("data_requests")
+      .select("id, user_id, kind, details, status, resolution, resolved_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const resolveDataRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), resolution: z.string().trim().min(3).max(2000) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await assertStaff(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("data_requests")
+      .update({ status: "closed", resolution: data.resolution, resolved_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

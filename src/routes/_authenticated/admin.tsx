@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { LifeBuoy, Search, Users, Receipt, Package, Home as HomeIcon, Activity } from "lucide-react";
-import { getAdminOverview, lookupUser } from "@/lib/admin.functions";
+import { LifeBuoy, Search, Users, Receipt, Package, Home as HomeIcon, Activity, Scale } from "lucide-react";
+import { getAdminOverview, lookupUser, listDataRequests, resolveDataRequest } from "@/lib/admin.functions";
+import { toast } from "sonner";
 import { fullDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -25,6 +26,24 @@ type Lookup = Awaited<ReturnType<typeof lookupUser>>;
 function AdminPage() {
   const fetchOverview = useServerFn(getAdminOverview);
   const find = useServerFn(lookupUser);
+  const fetchRequests = useServerFn(listDataRequests);
+  const resolve = useServerFn(resolveDataRequest);
+  const { data: requests, refetch: refetchRequests } = useQuery({
+    queryKey: ["admin-data-requests"],
+    queryFn: () => fetchRequests(),
+  });
+
+  async function closeRequest(id: string) {
+    const resolution = prompt("How was this request handled? (shared with the person)");
+    if (!resolution || resolution.trim().length < 3) return;
+    try {
+      await resolve({ data: { id, resolution } });
+      await refetchRequests();
+      toast.success("Request closed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not close the request");
+    }
+  }
   const [email, setEmail] = useState("");
   const [result, setResult] = useState<Lookup | null>(null);
   const [searching, setSearching] = useState(false);
@@ -119,6 +138,43 @@ function AdminPage() {
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">Usage counts and account metadata only — bill contents are never shown here.</p>
+      </section>
+
+      <section className="glass p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Scale className="h-4 w-4 text-emerald-300" />
+          <p className="font-semibold">Data rights requests</p>
+          {!!requests?.filter((r) => r.status === "open").length && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+              {requests.filter((r) => r.status === "open").length} open
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          DPDP Act requires a reply within 30 days. Oldest open requests first in your queue.
+        </p>
+        <div className="space-y-2">
+          {(requests ?? []).map((r) => (
+            <div key={r.id} className="rounded-xl bg-white/[0.04] p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium capitalize">{r.kind}</p>
+                <span className="text-[10px] text-muted-foreground">{fullDate(r.created_at)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{r.details}</p>
+              {r.resolution ? (
+                <p className="text-[11px] text-emerald-300">Closed: {r.resolution}</p>
+              ) : (
+                <button
+                  onClick={() => closeRequest(r.id)}
+                  className="mt-1 rounded-lg bg-violet-500/15 px-3 py-1.5 text-[11px] font-semibold text-violet-300"
+                >
+                  Record outcome &amp; close
+                </button>
+              )}
+            </div>
+          ))}
+          {!requests?.length && <p className="text-xs text-muted-foreground">No requests yet.</p>}
+        </div>
       </section>
 
       <section className="glass p-5 space-y-3">

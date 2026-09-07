@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight, Bell, Cookie, HelpCircle } from "lucide-react";
+import { Database, Download, FileJson, FileSpreadsheet, ShieldCheck, ScrollText, Trash2, LogOut, LifeBuoy, ChevronRight, Bell, Cookie, HelpCircle, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { exportAllData, deleteAllMyData } from "@/lib/export.functions";
 import { getMyStaffRoles } from "@/lib/admin.functions";
@@ -134,12 +134,23 @@ function SettingsPage() {
         </div>
       </section>
 
+      {/* Privacy centre */}
+      <Link to={"/privacy-center" as "/home"} className="glass flex items-center gap-3 p-4">
+        <Scale className="h-5 w-5 text-emerald-300" />
+        <div className="flex-1">
+          <p className="font-semibold text-sm">Privacy Centre</p>
+          <p className="text-[11px] text-muted-foreground">Your consents, data requests and account erasure (DPDP Act)</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
+
       {/* Legal */}
       <section className="glass p-5 space-y-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-emerald-300" />
           <p className="font-semibold">Legal</p>
         </div>
+
         <Link to="/privacy" className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm flex-1">Privacy Policy</span>
