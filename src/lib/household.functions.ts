@@ -63,20 +63,22 @@ export const createHousehold = createServerFn({ method: "POST" })
     let lastError = "";
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = makeCode();
-      const { data: hh, error } = await supabase
+      const id = crypto.randomUUID();
+      // No .select() here: the households read policy requires membership, which
+      // does not exist yet, so RETURNING would be blocked by RLS.
+      const { error } = await supabase
         .from("households")
-        .insert({ name: data.name, owner_id: userId, invite_code: code })
-        .select("id, invite_code")
-        .single();
+        .insert({ id, name: data.name, owner_id: userId, invite_code: code });
       if (error) { lastError = error.message; continue; }
 
       const { error: memErr } = await supabase
         .from("household_members")
-        .insert({ household_id: hh.id, user_id: userId, role: "owner", display_name: data.displayName });
+        .insert({ household_id: id, user_id: userId, role: "owner", display_name: data.displayName });
       if (memErr) throw new Error(memErr.message);
-      return { id: hh.id, inviteCode: hh.invite_code as string };
+      return { id, inviteCode: code };
     }
     throw new Error(lastError || "Could not create household.");
+
   });
 
 export const joinHousehold = createServerFn({ method: "POST" })
