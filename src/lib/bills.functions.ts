@@ -107,7 +107,7 @@ Extract the following for EVERY single line item on the bill:
 - category: One of — Grocery, Produce, Dairy, Beverages, Snacks, Bakery, Household, Hygiene, Beauty, Medicine, Salon, Doctor, Appliances, Electronics, Mobile, Clothing, Footwear, Furniture, Stationery, Baby, Pets, Restaurant, Fuel, Utility, Transport, Travel, Entertainment, Sports, Services, Jewelry, Other
 - sub_category: A short e-commerce style path "Parent > Child" — e.g. "Personal Care > Hair Styling" (salon), "Electronics > Kitchen Appliances" (appliances), "Health > Consultation" (doctor), "Grocery > Cooking Oil", "Dairy > Butter"
 - quantity: Number of units bought (integer, default 1)
-- unit: pcs or kg or g or L or ml or pack or dozen or pair
+- unit: The COUNTING unit — how the item is sold, NOT its printed weight. Allowed: pcs, bar, tube, bottle, packet, pack, sachet, can, jar, box, strip, tablet, roll, pair, dozen, kg, g, L, ml, set, service
 - unit_weight_or_volume: Weight or volume of ONE unit as string like 125g or 500ml or 1kg or null
 - mrp: Maximum Retail Price per unit if shown on bill, else null
 - unit_price: Actual selling price per unit after any discount (number)
