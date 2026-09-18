@@ -309,9 +309,20 @@ const UNIT_BY_KEYWORD: ReadonlyArray<[RegExp, string]> = [
   [/\b(brush|toothbrush|razor|blade|comb|bucket|mug|bulb|battery|charger|cable|slipper|shoe|sock|towel|napkin|notebook|pen|pencil)\b/, "pcs"],
 ];
 
-const SIZE_UNIT_PATTERN = /\d\s*(kg|kgs|g|gm|gms|ml|l|ltr|litre)\b/i;
+const SIZE_PATTERN = /(\d+(?:\.\d+)?)\s*(kg|kgs|gm|gms|g|ml|ltr|litre|l)\b/i;
 
-function normalizeUnit(name: string, rawUnit: unknown, sizeHint: unknown): string {
+/** Recover a pack size printed in the item name ("Lux Soap 100g" → "100g"). */
+function extractSize(name: string, existing: unknown): string | null {
+  const current = typeof existing === "string" ? existing.trim() : "";
+  if (current) return current;
+  const m = SIZE_PATTERN.exec(String(name ?? ""));
+  if (!m) return null;
+  const u = m[2].toLowerCase();
+  const suffix = u === "kgs" ? "kg" : u === "gm" || u === "gms" ? "g" : u === "ltr" || u === "litre" || u === "l" ? "L" : u;
+  return `${m[1]}${suffix}`;
+}
+
+function normalizeUnit(name: string, rawUnit: unknown): string {
   const cleaned = String(rawUnit ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
   // "g per l", "g/l", "gms." → collapse to the leading token
   const single = cleaned.split(/[\/\s]+/)[0] ?? "";
