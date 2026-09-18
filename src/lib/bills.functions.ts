@@ -107,7 +107,7 @@ Extract the following for EVERY single line item on the bill:
 - category: One of — Grocery, Produce, Dairy, Beverages, Snacks, Bakery, Household, Hygiene, Beauty, Medicine, Salon, Doctor, Appliances, Electronics, Mobile, Clothing, Footwear, Furniture, Stationery, Baby, Pets, Restaurant, Fuel, Utility, Transport, Travel, Entertainment, Sports, Services, Jewelry, Other
 - sub_category: A short e-commerce style path "Parent > Child" — e.g. "Personal Care > Hair Styling" (salon), "Electronics > Kitchen Appliances" (appliances), "Health > Consultation" (doctor), "Grocery > Cooking Oil", "Dairy > Butter"
 - quantity: Number of units bought (integer, default 1)
-- unit: pcs or kg or g or L or ml or pack or dozen or pair
+- unit: The COUNTING unit — how the item is sold, NOT its printed weight. Allowed: pcs, bar, tube, bottle, packet, pack, sachet, can, jar, box, strip, tablet, roll, pair, dozen, kg, g, L, ml, set, service
 - unit_weight_or_volume: Weight or volume of ONE unit as string like 125g or 500ml or 1kg or null
 - mrp: Maximum Retail Price per unit if shown on bill, else null
 - unit_price: Actual selling price per unit after any discount (number)
@@ -130,6 +130,8 @@ RULES:
 - Return ONLY valid JSON. No markdown. No explanation text.
 - If a field cannot be read from the image use null — never guess randomly
 - For loose items like Tomato 500g at 30 rupees per kg, calculate correctly: unit_weight_or_volume is 500g, unit_price is 15, total_price is 15
+- CRITICAL on units: use kg / g / L / ml ONLY for loose weighed or poured goods (vegetables, fruit, loose rice, loose oil, milk from a dispenser). Any packaged product is counted, not weighed — put its printed weight in unit_weight_or_volume and use the counting unit in unit. Examples: Lux Soap 100g → unit "bar", unit_weight_or_volume "100g"; Colgate 150g toothpaste → unit "tube"; shampoo/oil/cold drink → "bottle"; biscuits/chips/namkeen/bread → "packet"; shampoo sachet/ketchup sachet → "sachet"; eggs → "pcs" (or "dozen"); tablets/medicine → "strip" or "tablet"; toilet/kitchen paper → "roll"; ghee/jam/pickle → "jar"; canned goods → "can"
+- Never write a unit like "g per L" or "g/L" — unit is one single word
 - Merge duplicate line items into one with combined quantity`;
 
 const TOOL_SCHEMA = {
@@ -285,6 +287,63 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Receipts print a pack weight ("LUX SOAP 100G") and models often copy that into
+ * the counting unit, so a bar of soap ends up as "g" or even "g/L". Packaged goods
+ * are counted, never weighed: keep the printed size in unit_weight_or_volume and
+ * derive the counting unit from the product name.
+ */
+const MEASURE_UNITS = new Set(["g", "gm", "gms", "gram", "grams", "kg", "kgs", "l", "lt", "ltr", "litre", "liter", "ml", "mls"]);
+
+const UNIT_BY_KEYWORD: ReadonlyArray<[RegExp, string]> = [
+  [/\b(soap|bathing bar|detergent bar|dish bar|washing bar)\b/, "bar"],
+  [/\b(toothpaste|tooth paste|ointment|cream tube|gel tube)\b/, "tube"],
+  [/\b(sachet|shampoo pouch|refill pouch)\b/, "sachet"],
+  [/\b(shampoo|conditioner|hair oil|body lotion|handwash|hand wash|floor cleaner|toilet cleaner|phenyl|sanitizer|syrup|cola|pepsi|coke|sprite|thums|maaza|frooti|juice|water bottle|mineral water|soft drink|cold drink|perfume|deodorant|deo spray)\b/, "bottle"],
+  [/\b(biscuit|biscuits|cookies|chips|namkeen|wafers|noodles|maggi|bread|rusk|snack|papad|sev|bhujia|chocolate|candy|toffee)\b/, "packet"],
+  [/\b(ghee|jam|pickle|achar|honey|peanut butter|mayonnaise)\b/, "jar"],
+  [/\b(tablet|tablets|capsule|capsules|strip|tab\b)/, "strip"],
+  [/\b(tissue|toilet roll|kitchen roll|paper roll|foil|cling film)\b/, "roll"],
+  [/\b(canned|tin\b|can\b)/, "can"],
+  [/\b(egg|eggs)\b/, "pcs"],
+  [/\b(brush|toothbrush|razor|blade|comb|bucket|mug|bulb|battery|charger|cable|slipper|shoe|sock|towel|napkin|notebook|pen|pencil)\b/, "pcs"],
+];
+
+const SIZE_PATTERN = /(\d+(?:\.\d+)?)\s*(kg|kgs|gm|gms|g|ml|ltr|litre|l)\b/i;
+
+/** Recover a pack size printed in the item name ("Lux Soap 100g" → "100g"). */
+function extractSize(name: string, existing: unknown): string | null {
+  const current = typeof existing === "string" ? existing.trim() : "";
+  if (current) return current;
+  const m = SIZE_PATTERN.exec(String(name ?? ""));
+  if (!m) return null;
+  const u = m[2].toLowerCase();
+  const suffix = u === "kgs" ? "kg" : u === "gm" || u === "gms" ? "g" : u === "ltr" || u === "litre" || u === "l" ? "L" : u;
+  return `${m[1]}${suffix}`;
+}
+
+function normalizeUnit(name: string, rawUnit: unknown): string {
+  const cleaned = String(rawUnit ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
+  // "g per l", "g/l", "gms." → collapse to the leading token
+  const single = cleaned.split(/[\/\s]+/)[0] ?? "";
+  const lowerName = String(name ?? "").toLowerCase();
+
+  const keyword = UNIT_BY_KEYWORD.find(([re]) => re.test(lowerName))?.[1];
+  if (keyword) return keyword;
+
+  if (!single) return "pcs";
+  if (MEASURE_UNITS.has(single)) {
+    // Loose weighed goods keep their measure unit; only casing/abbreviations change.
+    if (single === "gm" || single === "gms" || single === "gram" || single === "grams") return "g";
+    if (single === "kgs") return "kg";
+    if (single === "l" || single === "lt" || single === "ltr" || single === "litre" || single === "liter") return "L";
+    if (single === "mls") return "ml";
+    return single;
+  }
+  if (single === "pc" || single === "pcs" || single === "piece" || single === "pieces" || single === "nos" || single === "no") return "pcs";
+  return single;
+}
+
 /** Normalise whatever shape the model returned into our item field names. */
 function normalizeItems(parsedRoot: unknown) {
   return findItemsArray(parsedRoot).map((raw) => {
@@ -300,8 +359,11 @@ function normalizeItems(parsedRoot: unknown) {
       category: (pick(raw, ["category", "category_name"]) as string | undefined) ?? undefined,
       sub_category: (pick(raw, ["sub_category", "subcategory", "sub_category_path"]) as string | undefined) ?? undefined,
       quantity: qty || 1,
-      unit: (pick(raw, ["unit", "uom"]) as string | undefined) ?? "pcs",
-      unit_weight_or_volume: (pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) as string | undefined) ?? null,
+      unit: normalizeUnit(name, pick(raw, ["unit", "uom"])),
+      unit_weight_or_volume: extractSize(
+        name,
+        pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) ?? pick(raw, ["unit", "uom"]),
+      ),
       mrp: num(pick(raw, ["mrp", "list_price"])),
       unit_price: unitP ?? (qty ? resolvedTotal / qty : resolvedTotal),
       discount: num(pick(raw, ["discount", "discount_amount"])) ?? 0,
@@ -514,8 +576,8 @@ export async function extractBillFromImage(data: z.infer<typeof ScanInput>) {
         brand: it.brand || "Local",
         company: it.company ?? null,
         qty,
-        unit: it.unit || "pcs",
-        unit_weight_or_volume: it.unit_weight_or_volume ?? null,
+        unit: normalizeUnit(it.name, it.unit),
+        unit_weight_or_volume: extractSize(it.name, it.unit_weight_or_volume),
         mrp: it.mrp == null ? null : Number(it.mrp),
         unitPrice,
         price: total,
