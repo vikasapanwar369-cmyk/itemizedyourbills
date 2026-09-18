@@ -287,6 +287,54 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Receipts print a pack weight ("LUX SOAP 100G") and models often copy that into
+ * the counting unit, so a bar of soap ends up as "g" or even "g/L". Packaged goods
+ * are counted, never weighed: keep the printed size in unit_weight_or_volume and
+ * derive the counting unit from the product name.
+ */
+const MEASURE_UNITS = new Set(["g", "gm", "gms", "gram", "grams", "kg", "kgs", "l", "lt", "ltr", "litre", "liter", "ml", "mls"]);
+
+const UNIT_BY_KEYWORD: ReadonlyArray<[RegExp, string]> = [
+  [/\b(soap|bathing bar|detergent bar|dish bar|washing bar)\b/, "bar"],
+  [/\b(toothpaste|tooth paste|ointment|cream tube|gel tube)\b/, "tube"],
+  [/\b(sachet|shampoo pouch|refill pouch)\b/, "sachet"],
+  [/\b(shampoo|conditioner|hair oil|body lotion|handwash|hand wash|floor cleaner|toilet cleaner|phenyl|sanitizer|syrup|cola|pepsi|coke|sprite|thums|maaza|frooti|juice|water bottle|mineral water|soft drink|cold drink|perfume|deodorant|deo spray)\b/, "bottle"],
+  [/\b(biscuit|biscuits|cookies|chips|namkeen|wafers|noodles|maggi|bread|rusk|snack|papad|sev|bhujia|chocolate|candy|toffee)\b/, "packet"],
+  [/\b(ghee|jam|pickle|achar|honey|peanut butter|mayonnaise)\b/, "jar"],
+  [/\b(tablet|tablets|capsule|capsules|strip|tab\b)/, "strip"],
+  [/\b(tissue|toilet roll|kitchen roll|paper roll|foil|cling film)\b/, "roll"],
+  [/\b(canned|tin\b|can\b)/, "can"],
+  [/\b(egg|eggs)\b/, "pcs"],
+  [/\b(brush|toothbrush|razor|blade|comb|bucket|mug|bulb|battery|charger|cable|slipper|shoe|sock|towel|napkin|notebook|pen|pencil)\b/, "pcs"],
+];
+
+const SIZE_UNIT_PATTERN = /\d\s*(kg|kgs|g|gm|gms|ml|l|ltr|litre)\b/i;
+
+function normalizeUnit(name: string, rawUnit: unknown, sizeHint: unknown): string {
+  const cleaned = String(rawUnit ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
+  // "g per l", "g/l", "gms." → collapse to the leading token
+  const single = cleaned.split(/[\/\s]+/)[0] ?? "";
+  const lowerName = String(name ?? "").toLowerCase();
+
+  const keyword = UNIT_BY_KEYWORD.find(([re]) => re.test(lowerName))?.[1];
+  if (keyword) return keyword;
+
+  if (!single) return "pcs";
+  if (MEASURE_UNITS.has(single)) {
+    // A printed pack size next to a weight unit means a packaged (countable) item.
+    if (SIZE_UNIT_PATTERN.test(String(sizeHint ?? "")) || SIZE_UNIT_PATTERN.test(lowerName)) return "packet";
+    // Normalise casing/abbreviations for genuinely weighed goods.
+    if (single === "gm" || single === "gms" || single === "gram" || single === "grams") return "g";
+    if (single === "kgs") return "kg";
+    if (single === "l" || single === "lt" || single === "ltr" || single === "litre" || single === "liter") return "L";
+    if (single === "mls") return "ml";
+    return single;
+  }
+  if (single === "pc" || single === "pcs" || single === "piece" || single === "pieces" || single === "nos" || single === "no") return "pcs";
+  return single;
+}
+
 /** Normalise whatever shape the model returned into our item field names. */
 function normalizeItems(parsedRoot: unknown) {
   return findItemsArray(parsedRoot).map((raw) => {
