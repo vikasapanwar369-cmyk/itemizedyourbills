@@ -359,8 +359,11 @@ function normalizeItems(parsedRoot: unknown) {
       category: (pick(raw, ["category", "category_name"]) as string | undefined) ?? undefined,
       sub_category: (pick(raw, ["sub_category", "subcategory", "sub_category_path"]) as string | undefined) ?? undefined,
       quantity: qty || 1,
-      unit: (pick(raw, ["unit", "uom"]) as string | undefined) ?? "pcs",
-      unit_weight_or_volume: (pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) as string | undefined) ?? null,
+      unit: normalizeUnit(name, pick(raw, ["unit", "uom"])),
+      unit_weight_or_volume: extractSize(
+        name,
+        pick(raw, ["unit_weight_or_volume", "size", "weight", "volume", "pack_size"]) ?? pick(raw, ["unit", "uom"]),
+      ),
       mrp: num(pick(raw, ["mrp", "list_price"])),
       unit_price: unitP ?? (qty ? resolvedTotal / qty : resolvedTotal),
       discount: num(pick(raw, ["discount", "discount_amount"])) ?? 0,
