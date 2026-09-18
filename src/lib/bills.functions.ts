@@ -130,6 +130,8 @@ RULES:
 - Return ONLY valid JSON. No markdown. No explanation text.
 - If a field cannot be read from the image use null — never guess randomly
 - For loose items like Tomato 500g at 30 rupees per kg, calculate correctly: unit_weight_or_volume is 500g, unit_price is 15, total_price is 15
+- CRITICAL on units: use kg / g / L / ml ONLY for loose weighed or poured goods (vegetables, fruit, loose rice, loose oil, milk from a dispenser). Any packaged product is counted, not weighed — put its printed weight in unit_weight_or_volume and use the counting unit in unit. Examples: Lux Soap 100g → unit "bar", unit_weight_or_volume "100g"; Colgate 150g toothpaste → unit "tube"; shampoo/oil/cold drink → "bottle"; biscuits/chips/namkeen/bread → "packet"; shampoo sachet/ketchup sachet → "sachet"; eggs → "pcs" (or "dozen"); tablets/medicine → "strip" or "tablet"; toilet/kitchen paper → "roll"; ghee/jam/pickle → "jar"; canned goods → "can"
+- Never write a unit like "g per L" or "g/L" — unit is one single word
 - Merge duplicate line items into one with combined quantity`;
 
 const TOOL_SCHEMA = {
