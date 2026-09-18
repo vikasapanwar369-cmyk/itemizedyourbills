@@ -322,9 +322,7 @@ function normalizeUnit(name: string, rawUnit: unknown, sizeHint: unknown): strin
 
   if (!single) return "pcs";
   if (MEASURE_UNITS.has(single)) {
-    // A printed pack size next to a weight unit means a packaged (countable) item.
-    if (SIZE_UNIT_PATTERN.test(String(sizeHint ?? "")) || SIZE_UNIT_PATTERN.test(lowerName)) return "packet";
-    // Normalise casing/abbreviations for genuinely weighed goods.
+    // Loose weighed goods keep their measure unit; only casing/abbreviations change.
     if (single === "gm" || single === "gms" || single === "gram" || single === "grams") return "g";
     if (single === "kgs") return "kg";
     if (single === "l" || single === "lt" || single === "ltr" || single === "litre" || single === "liter") return "L";
