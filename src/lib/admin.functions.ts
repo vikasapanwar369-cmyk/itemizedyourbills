@@ -119,7 +119,7 @@ export const listDataRequests = createServerFn({ method: "GET" })
     await assertStaff(context.supabase, context.userId);
     const { data, error } = await context.supabase
       .from("data_requests")
-      .select("id, user_id, kind, details, status, resolution, resolved_at, created_at")
+      .select("id, user_id, kind, details, status, resolution, resolved_at, created_at, acknowledged_at")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
