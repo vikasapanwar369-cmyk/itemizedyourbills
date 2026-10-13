@@ -6,14 +6,15 @@ import {
   Repeat, ArrowRight, ScanLine, Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { captureAttribution } from "@/lib/attribution";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BillSnap — Snap a bill, track every item with AI" },
-      { name: "description", content: "BillSnap reads every line of your grocery, pharmacy and salon bills with AI — item, brand, quantity and price — then tracks budgets, refills and price inflation for your household." },
-      { property: "og:title", content: "BillSnap — Snap a bill, track every item with AI" },
-      { property: "og:description", content: "AI bill scanning with item-level categories, budgets, refill predictions and personal inflation tracking." },
+      { title: "BillSnap — Never run out, never overpay" },
+      { name: "description", content: "BillSnap reads every item on your grocery, pharmacy and salon bills, predicts when you'll run out of what you actually buy, and shows how much your own basket has inflated." },
+      { property: "og:title", content: "BillSnap — Never run out, never overpay" },
+      { property: "og:description", content: "Item-level bill scanning, refill predictions and your own inflation index." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -22,11 +23,11 @@ export const Route = createFileRoute("/")({
 });
 
 const FEATURES = [
+  { icon: PackageCheck, title: "Never run out", body: "BillSnap learns how often you buy soap, atta or a medicine and warns you before it runs out — not after." },
+  { icon: TrendingUp, title: "Your own inflation index", body: "See how your real basket price moved over 3, 6, 12 or 24 months — by category, brand or item." },
   { icon: ScanLine, title: "Item-level extraction", body: "Every line of the bill becomes its own row — name, brand, company, quantity, unit, unit price and MRP." },
   { icon: Sparkles, title: "Store-grade categories", body: "Items are sorted into retail-style categories and subcategories, so dairy never hides inside “groceries”." },
-  { icon: PackageCheck, title: "Refill predictions", body: "BillSnap learns how often you buy soap, atta or a medicine and warns you before it runs out." },
   { icon: Target, title: "Budgets that pace you", body: "Set a monthly limit per category and get alerts when your spending is running hot." },
-  { icon: TrendingUp, title: "Your own inflation index", body: "See how your real basket price moved over 3, 6, 12 or 24 months — by category, brand or item." },
   { icon: Repeat, title: "Recurring bill radar", body: "Repeating bills are detected automatically with their cadence and next expected date." },
   { icon: Users, title: "Household sharing", body: "Invite family so everyone scans into one shared picture of the month." },
   { icon: ShieldCheck, title: "Duplicate-proof", body: "Image and content fingerprints block the same bill from being counted twice." },
@@ -42,6 +43,7 @@ function Landing() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    captureAttribution(window.location.search, document.referrer);
     supabase.auth.getUser().then(({ data }) => setSignedIn(Boolean(data.user)));
   }, []);
 
@@ -70,23 +72,23 @@ function Landing() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 text-[11px] text-violet-200"
         >
-          <Sparkles className="h-3.5 w-3.5" /> AI bill scanning built for Indian households
+          <Sparkles className="h-3.5 w-3.5" /> Refill alerts · your own inflation index
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mt-5 text-4xl font-bold leading-tight sm:text-5xl"
         >
-          Snap a bill.<br />
+          Never run out.<br />
           <span className="bg-gradient-to-r from-violet-300 to-emerald-300 bg-clip-text text-transparent">
-            Know every item you buy.
+            Never overpay for it.
           </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground"
         >
-          BillSnap turns a photo of any grocery, pharmacy, salon or appliance bill into clean item-level data —
-          then tracks budgets, refills, repeat purchases and your personal inflation.
+          Snap a bill and BillSnap reads every item on it — then predicts when you'll run out of the things you
+          actually buy, and shows what inflation is doing to your own basket. Not the government's number. Yours.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}

@@ -142,6 +142,7 @@ export type Database = {
       }
       data_requests: {
         Row: {
+          acknowledged_at: string | null
           created_at: string
           details: string
           id: string
@@ -153,6 +154,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acknowledged_at?: string | null
           created_at?: string
           details?: string
           id?: string
@@ -164,6 +166,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          acknowledged_at?: string | null
           created_at?: string
           details?: string
           id?: string
@@ -565,6 +568,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_attribution: {
+        Row: {
+          campaign: string | null
+          created_at: string
+          referrer: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          campaign?: string | null
+          created_at?: string
+          referrer?: string | null
+          source: string
+          user_id: string
+        }
+        Update: {
+          campaign?: string | null
+          created_at?: string
+          referrer?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_consents: {
         Row: {
           created_at: string
@@ -619,6 +646,24 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_visits: {
+        Row: {
+          created_at: string
+          user_id: string
+          visited_on: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+          visited_on?: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+          visited_on?: string
         }
         Relationships: []
       }

@@ -141,7 +141,14 @@ export const createDataRequest = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { error } = await supabase
       .from("data_requests")
-      .insert({ user_id: userId, kind: data.kind, details: data.details });
+      .insert({
+        user_id: userId,
+        kind: data.kind,
+        details: data.details,
+        // Sec. 13: the app confirms receipt on screen the moment this lands, so
+        // the acknowledgement is stamped here and the 7-day clock starts now.
+        acknowledged_at: new Date().toISOString(),
+      });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -152,7 +159,7 @@ export const getMyDataRequests = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("data_requests")
-      .select("id, kind, details, status, resolution, resolved_at, created_at")
+      .select("id, kind, details, status, resolution, resolved_at, created_at, acknowledged_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);

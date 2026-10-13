@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function assertStaff(supabase: SupabaseClient<any, any, any>, userId: string) {
+export async function assertStaff(supabase: SupabaseClient<any, any, any>, userId: string) {
   const { data } = await supabase
     .from("user_roles")
     .select("role")
@@ -119,7 +119,7 @@ export const listDataRequests = createServerFn({ method: "GET" })
     await assertStaff(context.supabase, context.userId);
     const { data, error } = await context.supabase
       .from("data_requests")
-      .select("id, user_id, kind, details, status, resolution, resolved_at, created_at")
+      .select("id, user_id, kind, details, status, resolution, resolved_at, created_at, acknowledged_at")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);

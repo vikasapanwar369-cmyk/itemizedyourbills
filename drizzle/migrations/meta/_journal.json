@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791919947544,
+      "tag": "0000_grievance_clock_and_launch_tracking",
+      "breakpoints": true
+    }
+  ]
+}

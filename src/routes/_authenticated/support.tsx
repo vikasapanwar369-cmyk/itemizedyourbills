@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, LifeBuoy, Send, ShieldCheck, FileText, Cookie } from "lucide-react";
+import { ArrowLeft, ChevronDown, LifeBuoy, Send, ShieldCheck, FileText, Cookie, MessageCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { createTicket, getMyTickets } from "@/lib/support.functions";
 import { fullDate } from "@/lib/format";
+import { SUPPORT_CONFIG, supportMailto, whatsappHref } from "@/lib/support-config";
 
 export const Route = createFileRoute("/_authenticated/support")({
   head: () => ({
@@ -88,6 +89,7 @@ function SupportPage() {
           <LifeBuoy className="h-4 w-4 text-violet-300" />
           <p className="font-semibold">Still stuck? Message us</p>
         </div>
+        <p className="text-[11px] text-muted-foreground">{SUPPORT_CONFIG.responsePromise}</p>
         <div className="flex flex-wrap gap-2">
           {TOPICS.map((t) => (
             <button
@@ -121,6 +123,28 @@ function SupportPage() {
         >
           <Send className="h-4 w-4" /> {send.isPending ? "Sending…" : "Send message"}
         </button>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          {whatsappHref("Hi BillSnap, I need help with: ") && (
+            <a
+              href={whatsappHref("Hi BillSnap, I need help with: ")!}
+              target="_blank"
+              rel="noreferrer"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500/15 px-3 py-2.5 text-xs font-semibold text-emerald-200"
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> WhatsApp us
+            </a>
+          )}
+          {supportMailto("BillSnap support") && (
+            <a
+              href={supportMailto("BillSnap support")!}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs font-semibold text-muted-foreground"
+            >
+              <Mail className="h-3.5 w-3.5" /> Email us
+            </a>
+          )}
+        </div>
+        <p className="text-[10px] text-muted-foreground">{SUPPORT_CONFIG.grievancePromise}</p>
       </section>
 
       {(tickets ?? []).length > 0 && (
