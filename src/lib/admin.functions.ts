@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function assertStaff(supabase: SupabaseClient<any, any, any>, userId: string) {
+export async function assertStaff(supabase: SupabaseClient<any, any, any>, userId: string) {
   const { data } = await supabase
     .from("user_roles")
     .select("role")
