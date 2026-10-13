@@ -159,7 +159,7 @@ export const getMyDataRequests = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("data_requests")
-      .select("id, kind, details, status, resolution, resolved_at, created_at")
+      .select("id, kind, details, status, resolution, resolved_at, created_at, acknowledged_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
