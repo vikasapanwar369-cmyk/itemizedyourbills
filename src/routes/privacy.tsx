@@ -128,12 +128,24 @@ function PrivacyPage() {
       </Section>
 
       <Section title="Grievance Officer &amp; escalation">
-        <p>
-          Grievance Officer — write to <span className="text-foreground">grievance@billsnap.app</span>, or raise a
-          grievance in the Privacy Centre. We acknowledge promptly and respond within 30 days. If you are still not
-          satisfied, you may complain to the{" "}
-          <strong className="text-foreground">Data Protection Board of India</strong>.
-        </p>
+        {grievanceOfficerPublished() ? (
+          <p>
+            Grievance Officer:{" "}
+            <strong className="text-foreground">{SUPPORT_CONFIG.grievanceOfficer.name}</strong>, write to{" "}
+            <span className="text-foreground">{SUPPORT_CONFIG.grievanceOfficer.email}</span> or{" "}
+            {SUPPORT_CONFIG.grievanceOfficer.address}. You can also raise a grievance in the Privacy Centre.{" "}
+            {SUPPORT_CONFIG.grievancePromise} If you are still not satisfied, you may complain to the{" "}
+            <strong className="text-foreground">Data Protection Board of India</strong>.
+          </p>
+        ) : (
+          <p>
+            Raise a grievance in the{" "}
+            <Link to={"/privacy-center" as "/privacy"} className="text-violet-300">Privacy Centre</Link> and it is
+            logged with a timestamp the moment you send it. {SUPPORT_CONFIG.grievancePromise} If you are still not
+            satisfied, you may complain to the{" "}
+            <strong className="text-foreground">Data Protection Board of India</strong>.
+          </p>
+        )}
       </Section>
 
       <p className="text-xs text-muted-foreground">
