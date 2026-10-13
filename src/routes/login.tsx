@@ -5,6 +5,7 @@ import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Receipt } from "lucide-react";
 import { acceptNotice } from "@/lib/dpdp.functions";
+import { captureAttribution } from "@/lib/attribution";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — BillSnap" }] }),
@@ -20,6 +21,7 @@ function LoginPage() {
   const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
+    captureAttribution(window.location.search, document.referrer);
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) navigate({ to: "/home", replace: true });
     });

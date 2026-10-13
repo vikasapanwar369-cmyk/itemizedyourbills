@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { SUPPORT_CONFIG, grievanceOfficerPublished } from "@/lib/support-config";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({

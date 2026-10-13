@@ -9,7 +9,7 @@ import {
 import {
   getAdminOverview, lookupUser, listDataRequests, resolveDataRequest,
 } from "@/lib/admin.functions";
-import { listTickets, replyToTicket, PRIORITY_TOPICS } from "@/lib/tickets.functions";
+import { listTickets, replyToTicket } from "@/lib/tickets.functions";
 import { getLaunchScorecard } from "@/lib/launch.functions";
 import { grievanceClock, clockLabel } from "@/lib/dpdp-due";
 import { SUPPORT_CONFIG } from "@/lib/support-config";
@@ -39,7 +39,7 @@ function AdminPage() {
   const fetchRequests = useServerFn(listDataRequests);
   const resolve = useServerFn(resolveDataRequest);
   const fetchTickets = useServerFn(listTickets);
-  const answer = useServerFn(replyToTicket);
+  const fetchScorecard = useServerFn(getLaunchScorecard);
   const fetchScorecard = useServerFn(getLaunchScorecard);
   const qc = useQueryClient();
 

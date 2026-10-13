@@ -1,7 +1,10 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
+import { readAttribution } from "@/lib/attribution";
+import { recordAttribution, recordVisit } from "@/lib/launch.functions";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthLayout,
@@ -10,6 +13,18 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthLayout() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const pingVisit = useServerFn(recordVisit);
+  const saveSource = useServerFn(recordAttribution);
+
+  // Launch-test instrumentation: one row per day the app is opened, and the
+  // outreach message that first brought this person in. Never blocks the UI.
+  useEffect(() => {
+    if (!ready) return;
+    void pingVisit().catch(() => {});
+    const attr = readAttribution();
+    if (attr) void saveSource({ data: attr }).catch(() => {});
+  }, [ready, pingVisit, saveSource]);
+
 
   useEffect(() => {
     let active = true;
