@@ -40,7 +40,6 @@ function AdminPage() {
   const resolve = useServerFn(resolveDataRequest);
   const fetchTickets = useServerFn(listTickets);
   const fetchScorecard = useServerFn(getLaunchScorecard);
-  const fetchScorecard = useServerFn(getLaunchScorecard);
   const qc = useQueryClient();
 
   const { data: requests, refetch: refetchRequests } = useQuery({
