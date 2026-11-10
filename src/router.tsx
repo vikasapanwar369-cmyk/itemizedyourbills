@@ -1,7 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { lazy } from "react";
 import { routeTree } from "./routeTree.gen";
 import { RouteErrorFallback } from "./components/RouteErrorFallback";
+
+// The router types its error screen as a lazy component, so wrap the fallback.
+const RouteErrorFallbackLazy = lazy(async () => ({ default: RouteErrorFallback }));
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -22,7 +26,7 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultErrorComponent: RouteErrorFallback,
+    defaultErrorComponent: RouteErrorFallbackLazy,
   });
 
   return router;

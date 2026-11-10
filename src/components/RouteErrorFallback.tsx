@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 
-export function RouteErrorFallback({ error, reset }: { error: Error; reset?: () => void }) {
+export function RouteErrorFallback({ error, reset }: { error: unknown; reset?: () => void }) {
   const router = useRouter();
   console.error(error);
   return (
@@ -8,7 +8,7 @@ export function RouteErrorFallback({ error, reset }: { error: Error; reset?: () 
       <div className="glass px-6 py-6 max-w-sm text-center space-y-3">
         <h1 className="text-lg font-semibold">This screen didn't load</h1>
         <p className="text-sm text-muted-foreground">
-          {error?.message || "Something went wrong. Try again."}
+          {error instanceof Error ? error.message : "Something went wrong. Try again."}
         </p>
         <button
           onClick={() => {
