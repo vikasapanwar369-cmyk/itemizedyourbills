@@ -9,6 +9,7 @@ import {
 import {
   getMyConsents, setConsent, getMyDataRequests, createDataRequest, eraseMyAccount,
 } from "@/lib/dpdp.functions";
+import { SUPPORT_CONFIG, grievanceOfficerPublished } from "@/lib/support-config";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/privacy-center")({
@@ -217,11 +218,19 @@ function PrivacyCentre() {
           <Mail className="h-4 w-4 text-amber-300" />
           <p className="font-semibold">Grievance Officer</p>
         </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          If a request isn't handled to your satisfaction, our Grievance Officer will review it. Write to{" "}
-          <span className="text-foreground">grievance@billsnap.app</span> or raise a grievance above. We reply within 30
-          days. You may then approach the Data Protection Board of India.
-        </p>
+        {grievanceOfficerPublished() ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Grievance Officer: <strong className="text-foreground">{SUPPORT_CONFIG.grievanceOfficer.name}</strong>,
+            write to <span className="text-foreground">{SUPPORT_CONFIG.grievanceOfficer.email}</span> or{" "}
+            {SUPPORT_CONFIG.grievanceOfficer.address}. {SUPPORT_CONFIG.grievancePromise} You may then approach the
+            Data Protection Board of India.
+          </p>
+        ) : (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Raise a grievance above and it is logged with a timestamp the moment you send it.{" "}
+            {SUPPORT_CONFIG.grievancePromise} You may then approach the Data Protection Board of India.
+          </p>
+        )}
         <Link to="/privacy" className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-2.5 text-sm">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1">Read the full privacy notice</span>
