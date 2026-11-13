@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Camera, Sparkles, PackageCheck, Target, TrendingUp, Users, ShieldCheck,
-  Repeat, ArrowRight, ScanLine, Check,
+  Repeat, ArrowRight, ScanLine, Check, Copy, Share2, MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { captureAttribution } from "@/lib/attribution";
+import { captureAttribution, getReferralLink } from "@/lib/attribution";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,14 +44,57 @@ const STEPS = [
 
 function Landing() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [email, setEmail] = useState("");
+  const [referralLink, setReferralLink] = useState("");
 
   useEffect(() => {
     captureAttribution(window.location.search, document.referrer);
+    setReferralLink(getReferralLink(window.location.origin));
     supabase.auth.getUser().then(({ data }) => setSignedIn(Boolean(data.user)));
   }, []);
 
   const ctaTo = signedIn ? "/home" : "/login";
   const ctaLabel = signedIn ? "Open BillSnap" : "Get started free";
+
+  function continueWithEmail(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const address = email.trim();
+    if (!address) return;
+    window.location.assign(`/login?mode=signup&email=${encodeURIComponent(address)}`);
+  }
+
+  async function copyReferralLink() {
+    if (!referralLink) return;
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast.success("Referral link copied");
+    } catch {
+      toast.error("Could not copy the link. Please try sharing it instead.");
+    }
+  }
+
+  async function shareReferralLink() {
+    if (!referralLink) return;
+    if (!navigator.share) {
+      await copyReferralLink();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: "BillSnap",
+        text: "Track the items in your household bills and know what you may need next.",
+        url: referralLink,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        toast.error("Could not open sharing options");
+      }
+    }
+  }
+
+  const whatsappLink = referralLink
+    ? `https://wa.me/?text=${encodeURIComponent(`Try BillSnap to track household bills: ${referralLink}`)}`
+    : undefined;
 
   return (
     <main className="relative min-h-screen overflow-hidden">

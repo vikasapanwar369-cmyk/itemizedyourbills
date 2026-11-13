@@ -7,11 +7,34 @@
  */
 
 const KEY = "billsnap_attribution";
+const REFERRAL_KEY = "billsnap_referral_code";
 
 export interface Attribution {
   source: string;
   campaign: string | null;
   referrer: string | null;
+}
+
+export function buildReferralLink(origin: string, code: string): string {
+  const url = new URL("/", origin);
+  const safeCode = code.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20);
+  url.searchParams.set("from", `ref-${safeCode}`);
+  return url.toString();
+}
+
+/** Stable per-browser referral link; the random token carries no account data. */
+export function getReferralLink(origin: string): string {
+  let code: string;
+  try {
+    code = localStorage.getItem(REFERRAL_KEY) ?? "";
+    if (!code) {
+      code = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+      localStorage.setItem(REFERRAL_KEY, code);
+    }
+  } catch {
+    code = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+  }
+  return buildReferralLink(origin, code);
 }
 
 /** Keep only short, boring tokens — never store arbitrary URL junk. */

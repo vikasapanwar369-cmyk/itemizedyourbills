@@ -1,5 +1,8 @@
 # Roadmap
 
+## In progress
+- [ ] Add an email-first signup path and shareable referral links on the landing page.
+
 ## Waiting on the owner
 - [ ] Supply the real Grievance Officer name, email and postal address — until
       then no named officer is published (DPDP gap).
